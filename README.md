@@ -1,0 +1,1 @@
+# Mithridates-AMD-Developer-s-Hackathon-ACT-2
