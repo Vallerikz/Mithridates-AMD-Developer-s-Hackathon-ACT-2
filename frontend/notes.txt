@@ -1,0 +1,10 @@
+##start
+
+in the parent directory, add next.js : 
+npx create-next-app@latest frontend --yes
+
+then
+cd frontend
+
+in the FE directory, to start the server:
+npm run dev
