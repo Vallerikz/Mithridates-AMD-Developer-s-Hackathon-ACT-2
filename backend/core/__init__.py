@@ -18,7 +18,8 @@ cors_origins = json.loads(os.environ.get('CORS_ORIGINS'))
 cors = CORS(origins=cors_origins)
 db = SQLAlchemy()
 socketio = SocketIO(
-    cors_allowed_origins=cors_origins
+    cors_allowed_origins=cors_origins,
+    logger=True, engineio_logger=True
 )
 swagger = Swagger()
 migrate = Migrate(compare_type=True)
@@ -45,7 +46,7 @@ def create_app(config_name, **kwargs):
     app.register_blueprint(p_bp)
 
 
-    # Deleting existing chat and task sessions on reload
+    # Deleting existing data recieve sessions on reload
     # from core.utils import delete_existing_sessions
     # with app.app_context():
     #     delete_existing_sessions()
