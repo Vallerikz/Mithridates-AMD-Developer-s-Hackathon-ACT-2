@@ -1,102 +1,83 @@
-// This acts as the bridge between the UI and Bijita's backend.
-// It takes audio chunks (from a mic or a Spotify tab) and sends them over WebSocket.
-// By decoupling this, the UI cards don't need to know where the data comes from.
 import { useState, useCallback, useRef } from 'react';
-import { FactCheckEvent, ClaimStatus, Verdict } from '../types';
+import { FactCheckEvent } from '../types';
+
+// TODO: Replace mock queue with actual Socket.IO listener once backend Websocket is ready
+const MOCK_FIXTURES = [
+  {
+    quote: "We've seen a 40% reduction in carbon emissions this quarter.",
+    verdict: 'DISPUTED',
+    explanation: "EPA reports show only a 12% reduction over the specified time period.",
+    sources: [{ title: "EPA 2023 Q3 Report", url: "https://epa.gov/reports" }]
+  },
+  {
+    quote: "The new infrastructure bill will create 2 million jobs.",
+    verdict: 'VERIFIED',
+    explanation: "CBO estimates project 2.1M jobs created over 5 years.",
+    sources: [{ title: "CBO Infrastructure Analysis", url: "https://cbo.gov" }]
+  }
+];
 
 export function useStream() {
   const [events, setEvents] = useState<FactCheckEvent[]>([]);
+  const [error, setError] = useState<string | null>(null);
   const isStreaming = useRef(false);
+  const mockIdx = useRef(0);
 
-  // Helper to generate a random ID
-  const generateId = () => Math.random().toString(36).substring(2, 9);
-
-  // This is the function the AudioStreamController will call every ~1 second
-  const sendAudioChunk = useCallback((audioBlob: Blob) => {
+  const sendAudioChunk = useCallback((blob: Blob) => {
     if (!isStreaming.current) return;
 
-    // --- MOCK BACKEND LOGIC ---
-    // In production, this will be: socket.emit('audio_chunk', audioBlob);
-    
-    // We randomly simulate the backend detecting a claim (e.g., a 10% chance per audio chunk)
-    const isClaimDetected = Math.random() < 0.1;
+    try {
+      // TODO: ws.send(blob)
 
-    if (isClaimDetected) {
-      const newEventId = `claim_${generateId()}`;
-      
-      // 1. Simulate receiving a 'CLAIM_DETECTED' event from the backend
-      const pendingEvent: FactCheckEvent = {
-        event_id: newEventId,
+      // temp mock behavior
+      if (Math.random() > 0.05) return;
+
+      const fixture = MOCK_FIXTURES[mockIdx.current % MOCK_FIXTURES.length];
+      mockIdx.current += 1;
+      const id = `evt_${Date.now().toString(36)}`;
+
+      const pending: FactCheckEvent = {
+        event_id: id,
         type: 'CLAIM_DETECTED',
         status: 'PENDING',
         timestamp: Date.now(),
-        data: {
-          extracted_quote: "Simulated claim extracted from audio stream...",
-        }
+        data: { extracted_quote: fixture.quote }
       };
 
-      setEvents((prev) => [pendingEvent, ...prev]);
-
-      // 2. Simulate the 5-15 second LLM latency to verify the claim
-      const latencyMs = Math.floor(Math.random() * 10000) + 5000; 
+      setEvents(prev => [pending, ...prev]);
 
       setTimeout(() => {
-        // 3. Randomly decide the outcome: 40% Verified, 40% Disputed, 20% Dropped
-        const rand = Math.random();
-        let status: ClaimStatus = 'COMPLETED';
-        let verdict: Verdict = null;
-        let type: FactCheckEvent['type'] = 'VERDICT_READY';
+        setEvents(prev => prev.map(ev =>
+          ev.event_id === id
+            ? {
+              ...ev,
+              type: 'VERDICT_READY',
+              status: 'COMPLETED',
+              data: {
+                ...ev.data,
+                verdict: fixture.verdict as any,
+                explanation: fixture.explanation,
+                sources: fixture.sources
+              }
+            }
+            : ev
+        ));
+      }, 6500);
 
-        if (rand < 0.4) {
-          verdict = 'VERIFIED';
-        } else if (rand < 0.8) {
-          verdict = 'DISPUTED';
-        } else {
-          status = 'DROPPED';
-          type = 'CLAIM_DISMISSED';
-        }
-
-        // Update the specific event in our state
-        setEvents((prevEvents) => 
-          prevEvents.map((ev) => 
-            ev.event_id === newEventId
-              ? {
-                  ...ev,
-                  type,
-                  status,
-                  data: {
-                    ...ev.data,
-                    verdict,
-                    explanation: status === 'DROPPED' 
-                      ? undefined 
-                      : `The AI reviewed this statement and determined it is ${verdict}.`,
-                    sources: status === 'DROPPED' ? undefined : [
-                      { title: "Source 1", url: "#" },
-                      { title: "Source 2", url: "#" }
-                    ]
-                  }
-                }
-              : ev
-          )
-        );
-      }, latencyMs);
+    } catch (err) {
+      console.error("Stream error:", err);
+      setError("Failed to stream audio chunk");
     }
   }, []);
 
   const startStream = useCallback(() => {
+    setError(null);
     isStreaming.current = true;
-    console.log("Started streaming audio chunks to backend...");
   }, []);
 
   const stopStream = useCallback(() => {
     isStreaming.current = false;
-    console.log("Stopped streaming.");
   }, []);
 
-  return {
-    events,
-    sendAudioChunk,
-    startStream,
-    stopStream
-  };
+  return { events, error, sendAudioChunk, startStream, stopStream };
 }
