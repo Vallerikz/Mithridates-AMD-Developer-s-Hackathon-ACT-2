@@ -15,11 +15,11 @@ import { useDocumentPip } from "../hooks/useDocumentPip";
 export default function Home() {
   const { events, sendAudioChunk, startStream, chunksSent, resetStream } = useStream();
   const { pipWindow, openPipOverlay, closePipOverlay } = useDocumentPip();
-  
+
   const [isEnginePaused, setIsEnginePaused] = useState(false);
   const [isVadSilent, setIsVadSilent] = useState(false);
   const [streamName, setStreamName] = useState<string | null>(null);
-  
+
   // Ref to hold the synchronous pause state to prevent stale closures in the MediaRecorder callback
   const isEnginePausedRef = useRef(false);
 
@@ -36,7 +36,6 @@ export default function Home() {
   const handleChunk = (buffer: ArrayBuffer) => {
     if (isEnginePausedRef.current) return; // Drop chunks if user paused the engine
     setIsVadSilent(false);
-    startStream();
     sendAudioChunk(buffer);
   };
 
@@ -52,8 +51,9 @@ export default function Home() {
     if (name) {
       setStreamName(name.split(' - ')[0].replace('screen:', ''));
     }
+    startStream();
     await openPipOverlay();
-  }, [openPipOverlay]);
+  }, [openPipOverlay, startStream]);
 
   const handleStreamStop = useCallback(() => {
     setStreamName(null);
@@ -66,7 +66,7 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-white selection:bg-slate-100 overflow-hidden">
-      
+
       {/* Top Navbar */}
       <header className="absolute top-0 left-0 w-full p-6 flex justify-between items-center z-20">
         <div className="text-xl font-bold tracking-tighter text-black flex items-center gap-2">
@@ -76,9 +76,9 @@ export default function Home() {
 
       {/* Main Content Area */}
       <main className="flex-1 relative flex flex-col items-center w-full max-w-3xl mx-auto px-6 pt-32 pb-24">
-        
+
         {/* Hero Section */}
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0, y: 20, filter: 'blur(8px)' }}
           animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
           transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
@@ -94,8 +94,8 @@ export default function Home() {
 
         {/* Action Area (Listener Button) */}
         <div className="w-full flex justify-center mb-24 z-50">
-          <Listener 
-            onChunk={handleChunk} 
+          <Listener
+            onChunk={handleChunk}
             onSilence={handleSilence}
             onStreamStart={handleStreamStart}
             onStreamStop={handleStreamStop}
@@ -109,17 +109,16 @@ export default function Home() {
       {/* If the PiP window exists, teleport the Feed directly into its body */}
       {pipWindow && createPortal(
         <div className="flex flex-col items-center w-full min-h-screen p-6 bg-slate-50">
-          
+
           <div className="w-full mb-8 flex items-center justify-between border-b border-slate-200 pb-4">
             <h2 className="text-sm font-bold uppercase tracking-widest text-black">TruLens Overlay</h2>
             <div className="flex items-center gap-4">
-              <button 
+              <button
                 onClick={toggleEngine}
-                className={`text-[10px] font-bold uppercase tracking-widest px-3 py-1.5 rounded-full border transition-colors active:scale-95 ${
-                  isEnginePaused 
-                    ? "text-emerald-500 hover:text-emerald-600 bg-emerald-50 border-emerald-100" 
+                className={`text-[10px] font-bold uppercase tracking-widest px-3 py-1.5 rounded-full border transition-colors active:scale-95 ${isEnginePaused
+                    ? "text-emerald-500 hover:text-emerald-600 bg-emerald-50 border-emerald-100"
                     : "text-amber-500 hover:text-amber-600 bg-amber-50 border-amber-100"
-                }`}
+                  }`}
               >
                 {isEnginePaused ? "Resume Engine" : "Pause Engine"}
               </button>
@@ -137,9 +136,9 @@ export default function Home() {
               </div>
             </div>
           </div>
-          
+
           <Feed events={events} isEnginePaused={isEnginePaused} chunksSent={chunksSent} isVadSilent={isVadSilent} streamName={streamName} />
-          
+
         </div>,
         pipWindow.document.body
       )}
