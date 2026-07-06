@@ -1,83 +1,69 @@
-import { useState, useCallback, useRef } from 'react';
-import { FactCheckEvent } from '../types';
+"use client";
 
-// TODO: Replace mock queue with actual Socket.IO listener once backend Websocket is ready
-const MOCK_FIXTURES = [
-  {
-    quote: "We've seen a 40% reduction in carbon emissions this quarter.",
-    verdict: 'DISPUTED',
-    explanation: "EPA reports show only a 12% reduction over the specified time period.",
-    sources: [{ title: "EPA 2023 Q3 Report", url: "https://epa.gov/reports" }]
-  },
-  {
-    quote: "The new infrastructure bill will create 2 million jobs.",
-    verdict: 'VERIFIED',
-    explanation: "CBO estimates project 2.1M jobs created over 5 years.",
-    sources: [{ title: "CBO Infrastructure Analysis", url: "https://cbo.gov" }]
-  }
-];
+import { useState, useRef, useCallback } from "react";
+import { FactCheckEvent } from "../types";
 
+/**
+ * Custom hook to manage the WebSocket connection to the fact-checking engine.
+ * Currently mocked for the hackathon UI development phase.
+ */
 export function useStream() {
   const [events, setEvents] = useState<FactCheckEvent[]>([]);
-  const [error, setError] = useState<string | null>(null);
+  const [chunksSent, setChunksSent] = useState(0);
   const isStreaming = useRef(false);
-  const mockIdx = useRef(0);
 
-  const sendAudioChunk = useCallback((blob: Blob) => {
+  /**
+   * Sends a 5-second audio ArrayBuffer to the engine for processing.
+   */
+  const sendAudioChunk = useCallback((buffer: ArrayBuffer) => {
     if (!isStreaming.current) return;
+    
+    setChunksSent((prev) => prev + 1);
+    
+    // TODO: Replace with actual WebSocket `socket.send(buffer)`
+    console.log("Sending ArrayBuffer of size:", buffer.byteLength);
 
-    try {
-      // TODO: ws.send(blob)
-
-      // temp mock behavior
-      if (Math.random() > 0.05) return;
-
-      const fixture = MOCK_FIXTURES[mockIdx.current % MOCK_FIXTURES.length];
-      mockIdx.current += 1;
-      const id = `evt_${Date.now().toString(36)}`;
-
-      const pending: FactCheckEvent = {
-        event_id: id,
-        type: 'CLAIM_DETECTED',
-        status: 'PENDING',
-        timestamp: Date.now(),
-        data: { extracted_quote: fixture.quote }
+    // Mock Engine Logic: Randomly trigger a fact check 5% of the time
+    if (Math.random() < 0.05) {
+      const mockEvent: FactCheckEvent = {
+        sentence: "The Federal Reserve just printed 5 trillion dollars yesterday.",
+        verdict: "False",
+        confidence: 0.98,
+        explanation: "The Federal Reserve did not print 5 trillion dollars yesterday. Monetary policy reports indicate standard liquidity operations.",
       };
-
-      setEvents(prev => [pending, ...prev]);
-
-      setTimeout(() => {
-        setEvents(prev => prev.map(ev =>
-          ev.event_id === id
-            ? {
-              ...ev,
-              type: 'VERDICT_READY',
-              status: 'COMPLETED',
-              data: {
-                ...ev.data,
-                verdict: fixture.verdict as any,
-                explanation: fixture.explanation,
-                sources: fixture.sources
-              }
-            }
-            : ev
-        ));
-      }, 6500);
-
-    } catch (err) {
-      console.error("Stream error:", err);
-      setError("Failed to stream audio chunk");
+      setEvents((prev) => [mockEvent, ...prev]);
     }
   }, []);
 
+  /**
+   * Initializes the stream state.
+   */
   const startStream = useCallback(() => {
-    setError(null);
     isStreaming.current = true;
   }, []);
 
+  /**
+   * Terminates the stream state.
+   */
   const stopStream = useCallback(() => {
     isStreaming.current = false;
   }, []);
 
-  return { events, error, sendAudioChunk, startStream, stopStream };
+  /**
+   * Hard resets the engine state, clearing all events and counters.
+   */
+  const resetStream = useCallback(() => {
+    isStreaming.current = false;
+    setEvents([]);
+    setChunksSent(0);
+  }, []);
+
+  return {
+    events,
+    chunksSent,
+    sendAudioChunk,
+    startStream,
+    stopStream,
+    resetStream,
+  };
 }

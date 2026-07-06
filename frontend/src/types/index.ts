@@ -1,20 +1,13 @@
-export type ClaimStatus = 'PENDING' | 'COMPLETED' | 'DROPPED';
-export type Verdict = 'VERIFIED' | 'DISPUTED' | null;
-
-export interface Source {
-  title: string;
-  url: string;
-}
-
+/**
+ * Represents a single validated fact-check event emitted by the AI engine.
+ */
 export interface FactCheckEvent {
-  event_id: string;
-  type: 'CLAIM_DETECTED' | 'VERDICT_READY' | 'CLAIM_DISMISSED';
-  status: ClaimStatus;
-  timestamp: number;
-  data: {
-    extracted_quote: string;
-    verdict?: Verdict;
-    explanation?: string;
-    sources?: Source[];
-  };
+  /** The specific spoken claim extracted from the audio stream. */
+  sentence: string;
+  /** The engine's determination (e.g., "True", "False"). */
+  verdict: string;
+  /** The engine's confidence score ranging from 0 to 1. */
+  confidence: number;
+  /** The detailed rationale explaining the verdict. */
+  explanation: string;
 }
