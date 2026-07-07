@@ -1,4 +1,8 @@
+import os
+
 import pytest
+
+os.environ.setdefault('GEMINI_API_KEY', 'test-key')
 
 from core import create_app, db, socketio
 

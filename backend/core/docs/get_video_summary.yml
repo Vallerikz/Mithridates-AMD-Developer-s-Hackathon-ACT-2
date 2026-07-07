@@ -1,0 +1,50 @@
+tags:
+  - Video
+
+summary: Get video summary
+
+description: >
+  Retrieves all transcribed sentences for a video session,
+  generates a summary using the configured LLM, and returns
+  the summary.
+
+parameters:
+  - in: path
+    name: video_id
+    required: true
+    schema:
+      type: integer
+    description: ID of the video session.
+
+responses:
+  200:
+    description: Video summary generated successfully.
+    schema:
+      type: object
+      properties:
+        video_id:
+          type: integer
+          example: 1
+        summary:
+          type: string
+          example: >
+            The speaker discussed climate change, renewable energy,
+            and concluded that investment in solar power is increasing.
+
+  404:
+    description: Video session not found.
+    schema:
+      type: object
+      properties:
+        message:
+          type: string
+          example: Video session not found.
+
+  500:
+    description: Failed to generate summary.
+    schema:
+      type: object
+      properties:
+        message:
+          type: string
+          example: Failed to generate summary.

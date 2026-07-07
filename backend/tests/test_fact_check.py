@@ -3,8 +3,8 @@ import json
 import pytest
 import requests
 
-from core.process_app import fireworks_client
-from core.process_app.fireworks_client import (
+from core.services import fact_check_service
+from core.services.fact_check_service import (
     FireworksAPIError,
     fact_check_sentences,
 )
@@ -190,5 +190,5 @@ def test_authorization_header_is_sent(monkeypatch):
 
     fact_check_sentences(['A.'])
 
-    assert captured['url'] == fireworks_client.FIREWORKS_API_URL
+    assert captured['url'] == fact_check_service.FIREWORKS_API_URL
     assert captured['headers']['Authorization'] == 'Bearer test-key'
