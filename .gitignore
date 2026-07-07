@@ -250,3 +250,4 @@ frontend/next-env.d.ts
 
 # backend custom
 *.m4a
+*.mp3
