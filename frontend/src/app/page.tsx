@@ -7,18 +7,23 @@ import { Listener } from "../components/Listener";
 import { Feed } from "../components/Feed";
 import { useStream } from "../hooks/useStream";
 import { useDocumentPip } from "../hooks/useDocumentPip";
+import { SummaryCard } from "../components/SummaryCard";
 
 /**
  * The main application page.
  * Manages the layout state and teleports the Fact-Check Feed into the PiP window when active.
  */
 export default function Home() {
-  const { events, sendAudioChunk, startStream, chunksSent, resetStream } = useStream();
+  const { events, sendAudioChunk, startStream, chunksSent, resetStream, fetchSessionSummary } = useStream();
   const { pipWindow, openPipOverlay, closePipOverlay } = useDocumentPip();
 
   const [isEnginePaused, setIsEnginePaused] = useState(false);
   const [isVadSilent, setIsVadSilent] = useState(false);
   const [streamName, setStreamName] = useState<string | null>(null);
+  
+  // Summary UI State
+  const [isSummarizing, setIsSummarizing] = useState(false);
+  const [summaryText, setSummaryText] = useState<string | null>(null);
 
   // Ref to hold the synchronous pause state to prevent stale closures in the MediaRecorder callback
   const isEnginePausedRef = useRef(false);
@@ -56,10 +61,12 @@ export default function Home() {
   }, [openPipOverlay, startStream]);
 
   const handleStreamStop = useCallback(() => {
+    // Clean up the session completely
     setStreamName(null);
     setIsEnginePaused(false);
     isEnginePausedRef.current = false;
     setIsVadSilent(false);
+    setSummaryText(null);
     resetStream();
     closePipOverlay();
   }, [resetStream, closePipOverlay]);
@@ -105,39 +112,68 @@ export default function Home() {
         {/* Local Feed (Only visible if PiP window is closed) */}
       </main>
 
+
+
       {/* --- THE MAGIC PORTAL --- */}
       {/* If the PiP window exists, teleport the Feed directly into its body */}
       {pipWindow && createPortal(
-        <div className="flex flex-col items-center w-full min-h-screen p-6 bg-slate-50">
+        <div className="flex flex-col items-center w-full min-h-screen bg-white p-6">
 
           <div className="w-full mb-8 flex items-center justify-between border-b border-slate-200 pb-4">
             <h2 className="text-sm font-bold uppercase tracking-widest text-black">TruLens Overlay</h2>
             <div className="flex items-center gap-4">
               <button
                 onClick={toggleEngine}
-                className={`text-[10px] font-bold uppercase tracking-widest px-3 py-1.5 rounded-full border transition-colors active:scale-95 ${isEnginePaused
-                    ? "text-emerald-500 hover:text-emerald-600 bg-emerald-50 border-emerald-100"
-                    : "text-amber-500 hover:text-amber-600 bg-amber-50 border-amber-100"
+                className={`text-[10px] font-bold uppercase tracking-widest px-4 py-1.5 rounded-full border transition-colors active:scale-95 ${isEnginePaused
+                    ? "bg-slate-900 text-white border-slate-900 hover:bg-black"
+                    : "bg-white text-slate-700 border-slate-200 hover:border-slate-300 hover:bg-slate-50"
                   }`}
               >
-                {isEnginePaused ? "Resume Engine" : "Pause Engine"}
+                {isEnginePaused ? "Start Stream" : "Stop Stream"}
               </button>
               <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
                 Transmissions: {chunksSent}
               </span>
               <div className="flex items-center gap-2">
                 <span className="relative flex h-2 w-2">
-                  <span className={`absolute inline-flex h-full w-full rounded-full opacity-75 ${isEnginePaused ? '' : 'animate-ping bg-rose-400'}`}></span>
-                  <span className={`relative inline-flex rounded-full h-2 w-2 ${isEnginePaused ? 'bg-slate-300' : 'bg-rose-500'}`}></span>
+                  <span className={`absolute inline-flex h-full w-full rounded-full opacity-75 ${isEnginePaused ? '' : 'animate-ping bg-slate-900'}`}></span>
+                  <span className={`relative inline-flex rounded-full h-2 w-2 ${isEnginePaused ? 'bg-slate-300' : 'bg-slate-900'}`}></span>
                 </span>
-                <span className={`text-xs font-bold uppercase tracking-widest ${isEnginePaused ? 'text-slate-400' : 'text-rose-500'}`}>
-                  {isEnginePaused ? "Paused" : "Live"}
+                <span className={`text-xs font-bold uppercase tracking-widest ${isEnginePaused ? 'text-slate-400' : 'text-slate-900'}`}>
+                  {isEnginePaused ? "Stopped" : "Live"}
                 </span>
               </div>
             </div>
           </div>
 
-          <Feed events={events} isEnginePaused={isEnginePaused} chunksSent={chunksSent} isVadSilent={isVadSilent} streamName={streamName} />
+          <div className="w-full pb-32 relative">
+            <Feed events={events} isEnginePaused={isEnginePaused} chunksSent={chunksSent} isVadSilent={isVadSilent} streamName={streamName} />
+            
+            {/* The Summary Card renders right after the feed if available */}
+            <div className="mt-8">
+              <SummaryCard summary={summaryText} isLoading={isSummarizing} />
+            </div>
+          </div>
+
+          {/* Floating Action Button for Generate Summary */}
+          <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 pointer-events-auto">
+            <button
+              onClick={async () => {
+                setIsSummarizing(true);
+                const summary = await fetchSessionSummary();
+                setSummaryText(summary);
+                setIsSummarizing(false);
+              }}
+              disabled={!isEnginePaused || isSummarizing}
+              className={`flex items-center justify-center gap-2 px-8 py-3.5 text-xs font-bold uppercase tracking-widest transition-all duration-300 rounded-full shadow-lg border ${
+                !isEnginePaused 
+                  ? "bg-white text-slate-300 cursor-not-allowed border-slate-200 shadow-sm" 
+                  : "bg-slate-900 text-white hover:bg-black border-slate-900 hover:shadow-xl active:scale-95"
+              }`}
+            >
+              {isSummarizing ? "Processing..." : summaryText ? "Update Summary" : "Generate Summary"}
+            </button>
+          </div>
 
         </div>,
         pipWindow.document.body

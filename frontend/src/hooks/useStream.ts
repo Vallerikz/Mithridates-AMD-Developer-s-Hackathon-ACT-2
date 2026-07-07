@@ -13,7 +13,7 @@ const NAMESPACE = "/data_receive_space";
 export function useStream() {
   const [events, setEvents] = useState<FactCheckEvent[]>([]);
   const [chunksSent, setChunksSent] = useState(0);
-  
+
   const isStreaming = useRef(false);
   const socketRef = useRef<Socket | null>(null);
   const videoIdRef = useRef<number | null>(null);
@@ -28,12 +28,12 @@ export function useStream() {
     const socket = io(`${API_URL}${NAMESPACE}`, {
       transports: ["websocket", "polling"],
     });
-    
+
     socketRef.current = socket;
 
     socket.on("connect", () => {
       console.log("Connected to Fact-Checking Engine");
-      
+
       // Handshake: create a video session
       socket.emit("create_video_session", {});
     });
@@ -71,9 +71,9 @@ export function useStream() {
   const sendAudioChunk = useCallback((buffer: ArrayBuffer) => {
     // Drop chunks if the engine is paused, disconnected, or handshake incomplete
     if (!isStreaming.current || !socketRef.current || videoIdRef.current === null) return;
-    
+
     setChunksSent((prev) => prev + 1);
-    
+
     console.log("Sending chunk size:", buffer.byteLength, "to video session:", videoIdRef.current);
 
     socketRef.current.emit("receive_audio_chunk", {
@@ -87,7 +87,7 @@ export function useStream() {
    */
   const stopStream = useCallback(() => {
     isStreaming.current = false;
-    
+
     if (socketRef.current) {
       socketRef.current.disconnect();
       socketRef.current = null;
@@ -100,15 +100,36 @@ export function useStream() {
    */
   const resetStream = useCallback(() => {
     isStreaming.current = false;
-    
+
     if (socketRef.current) {
       socketRef.current.disconnect();
       socketRef.current = null;
     }
     videoIdRef.current = null;
-    
+
     setEvents([]);
     setChunksSent(0);
+  }, []);
+
+  /**
+   * Fetches the summary of the current video session from the backend.
+   */
+  const fetchSessionSummary = useCallback(async (): Promise<string | null> => {
+    if (videoIdRef.current === null) return null;
+    try {
+      const response = await fetch(`${API_URL}/videos/${videoIdRef.current}/summary`);
+      if (!response.ok) {
+        throw new Error("Failed to fetch summary");
+      }
+      const data = await response.json();
+      if (data.summary === "") {
+        return "No spoken claims or facts were detected in this session yet.";
+      }
+      return data.summary || null;
+    } catch (error) {
+      console.error("Error fetching summary:", error);
+      return null;
+    }
   }, []);
 
   return {
@@ -118,5 +139,6 @@ export function useStream() {
     startStream,
     stopStream,
     resetStream,
+    fetchSessionSummary,
   };
 }
