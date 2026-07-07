@@ -1,7 +1,8 @@
 from flask import request, current_app
 
 from core import socketio, db
-from core.models import VideoSessionSaveModel, SentenceSaveModel
+from core.audio_processing import process_audio
+from core.models import VideoSessionSaveModel
 
 
 @socketio.on("connect", namespace="/data_receive_space")
@@ -76,35 +77,21 @@ def receive_audio_chunk(data):
     # Expects audio as an ArrayBuffer
     audio_chunk = data["audio_chunk"]
 
-    # ------------------------------------------------------------------
-    # TODO: Audio transcription
-    # ------------------------------------------------------------------
-    transcribed_sentence = "The sun sets in the east."
-
-    sentence_ins = SentenceSaveModel(
-        video_id=video.video_id,
-        sentence=transcribed_sentence,
-    )
-
-    db.session.add(sentence_ins)
-    db.session.commit()
-
-    # ------------------------------------------------------------------
-    # TODO: Send sentence to Fireworks
-    # ------------------------------------------------------------------
-    response = {
-        "sentence": sentence_ins.sentence,
-        "verdict": "False",
-        "confidence": 0.98,
-        "explanation": "The sun actually sets in the west because the Earth rotates on its axis from west to east."
-    }
-
-    socketio.emit(
-        "response",
-        response,
-        room=request.sid,
-        namespace="/data_receive_space",
-    )
+    process_response = process_audio(audio_chunk, video)
+    if process_response["error"] is False:
+        if len(process_response["responses"]) == 0:
+            return
+        socketio.emit(
+            "response", process_response['responses'],
+            room=request.sid, namespace="/data_receive_space",
+        )
+    else:
+        socketio.emit(
+            "error",
+            {"error": process_response['error_message']},
+            room=request.sid,
+            namespace="/data_receive_space",
+        )
 
 
 @socketio.on("disconnect", namespace="/data_receive_space")
