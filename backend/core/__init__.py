@@ -42,14 +42,10 @@ def create_app(config_name, **kwargs):
 
     # Registering Blueprints
     from core.process_app import bp as p_bp
+    from core.features_app import bp as f_bp
 
     app.register_blueprint(p_bp)
-
-
-    # Deleting existing data recieve sessions on reload
-    # from core.utils import delete_existing_sessions
-    # with app.app_context():
-    #     delete_existing_sessions()
+    app.register_blueprint(f_bp)
 
     return app
 
