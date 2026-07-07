@@ -1,2 +1,78 @@
 # Mithridates-AMD-Developer-s-Hackathon-ACT-2
 ## AMD Hackathon Sprint Workspace
+
+
+# Backend Setup
+
+## Prerequisites
+
+- Docker
+- Docker Compose
+
+## 1. Configure Environment Variables
+
+### Root `.env`
+
+In the project root directory, create a `.env` file and copy the contents from:
+
+```
+.env.sample
+```
+
+For development, you can either:
+
+- Leave the PostgreSQL password as `postgres`, **or**
+- Set your own password and update the `DATABASE_URI` in `backend/.env` accordingly.
+
+### Backend `.env`
+
+In the `backend/` directory, create another `.env` file and copy the contents from:
+
+```
+backend/.env.sample
+```
+
+Generate a random string and set it as the value for:
+
+```
+SECRET_KEY=<your-random-secret>
+```
+
+---
+
+## 2. Build and Start the Containers
+
+From the project root directory (`Mithridates-AMD-Developer-s-Hackathon-ACT-2`), run:
+
+```bash
+docker compose build
+docker compose up -d
+```
+
+---
+
+## 3. Run Database Migrations
+
+Open a shell inside the backend container:
+
+```bash
+docker exec -it backend-app sh
+```
+
+Then run:
+
+```bash
+flask db stamp head
+flask db upgrade
+```
+
+---
+
+## 4. Verify the Backend
+
+The backend should now be running.
+
+You can access:
+
+- API: http://localhost:8000
+- Swagger Documentation: http://localhost:8000/apidocs/
