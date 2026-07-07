@@ -1,6 +1,4 @@
-import random
-
-VERDICTS = ['True', 'False', 'Unverifiable']
+from core.process_app import fireworks_client
 
 
 def transcribe_chunk(audio_chunk):
@@ -13,12 +11,4 @@ def split_into_sentences(text):
 
 
 def check_sentences(sentences):
-    results = []
-    for sentence in sentences:
-        results.append({
-            'sentence': sentence,
-            'verdict': random.choice(VERDICTS),
-            'confidence': round(random.uniform(0.5, 0.99), 2),
-            'explanation': 'stub result, LLM call not plugged in yet'
-        })
-    return results
+    return fireworks_client.fact_check_sentences(sentences)
