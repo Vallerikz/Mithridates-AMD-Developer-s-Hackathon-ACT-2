@@ -220,3 +220,6 @@ __marimo__/
 
 # backend custom
 *.mp3
+
+# macOS
+.DS_Store
