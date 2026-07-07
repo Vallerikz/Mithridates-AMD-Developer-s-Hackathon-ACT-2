@@ -37,6 +37,11 @@ Generate a random string and set it as the value for:
 ```
 SECRET_KEY=<your-random-secret>
 ```
+Generate your GEMINI_API_KEY and set it as the value for:
+
+```
+GEMINI_API_KEY=<your-api-key>
+```
 
 ---
 
