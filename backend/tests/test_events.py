@@ -3,6 +3,14 @@ from core.services.fact_check_service import FireworksAPIError
 
 NAMESPACE = '/data_receive_space'
 
+CLUSTER_ID = b'\x1f\x43\xb6\x75'
+
+
+def webm_chunk(*clusters):
+    # header + N clusters; one emit needs at least two clusters for a complete
+    # one to be returned, since the trailing cluster is held back
+    return b'\x1a\x45\xdf\xa3header' + b''.join(CLUSTER_ID + c for c in clusters)
+
 
 def create_session(socket_client):
     socket_client.emit('create_video_session', {}, namespace=NAMESPACE)
@@ -82,7 +90,7 @@ def test_receive_audio_chunk_happy_path(socket_client, monkeypatch):
 
     socket_client.emit(
         'receive_audio_chunk',
-        {'video_id': video_id, 'audio_chunk': b'fakebytes'},
+        {'video_id': video_id, 'audio_chunk': webm_chunk(b'first', b'second')},
         namespace=NAMESPACE,
     )
     received = socket_client.get_received(namespace=NAMESPACE)
@@ -101,7 +109,7 @@ def test_empty_transcript_emits_nothing(socket_client, monkeypatch):
 
     socket_client.emit(
         'receive_audio_chunk',
-        {'video_id': video_id, 'audio_chunk': b'fakebytes'},
+        {'video_id': video_id, 'audio_chunk': webm_chunk(b'first', b'second')},
         namespace=NAMESPACE,
     )
     received = socket_client.get_received(namespace=NAMESPACE)
@@ -124,10 +132,10 @@ def test_receive_audio_chunk_fireworks_failure(socket_client, monkeypatch):
 
     socket_client.emit(
         'receive_audio_chunk',
-        {'video_id': video_id, 'audio_chunk': b'fakebytes'},
+        {'video_id': video_id, 'audio_chunk': webm_chunk(b'first', b'second')},
         namespace=NAMESPACE,
     )
     received = socket_client.get_received(namespace=NAMESPACE)
 
     assert received[0]['name'] == 'error'
-    assert received[0]['args'][0]['error'] == 'Fireworks API request failed'
+    assert received[0]['args'][0]['message'] == 'Fireworks API request failed'
