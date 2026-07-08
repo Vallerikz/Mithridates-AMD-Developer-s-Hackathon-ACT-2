@@ -28,6 +28,30 @@ export function Listener({ onChunk, onSilence, onStreamStart, onStreamStop }: Li
   const vadAnimationRef = useRef<number | null>(null);
 
   /**
+   * Safely dismounts the recorder, VAD engine, and terminates all hardware tracks.
+   */
+  const stopListening = useCallback(() => {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop();
+      mediaRecorderRef.current = null;
+    }
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop());
+      streamRef.current = null;
+    }
+    if (audioContextRef.current) {
+      audioContextRef.current.close();
+      audioContextRef.current = null;
+    }
+    if (vadAnimationRef.current) {
+      cancelAnimationFrame(vadAnimationRef.current);
+      vadAnimationRef.current = null;
+    }
+    setIsRecording(false);
+    onStreamStop();
+  }, [isRecording, onStreamStop]);
+
+  /**
    * Initializes the native browser Screen Share API, extracts the audio track,
    * mounts the VAD engine, and starts the MediaRecorder chunking engine.
    */
@@ -103,37 +127,14 @@ export function Listener({ onChunk, onSilence, onStreamStart, onStreamStop }: Li
       mediaRecorder.start(5000);
       setIsRecording(true);
 
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Screen share access denied or failed", err);
-      if (err.name !== "NotAllowedError") {
-        setError(err.message || "Failed to capture stream.");
+      const error = err instanceof Error ? err : null;
+      if (error?.name !== "NotAllowedError") {
+        setError(error?.message || "Failed to capture stream.");
       }
     }
-  }, [onChunk, onSilence, onStreamStart, onStreamStop]);
-
-  /**
-   * Safely dismounts the recorder, VAD engine, and terminates all hardware tracks.
-   */
-  const stopListening = useCallback(() => {
-    if (mediaRecorderRef.current && isRecording) {
-      mediaRecorderRef.current.stop();
-      mediaRecorderRef.current = null;
-    }
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach(track => track.stop());
-      streamRef.current = null;
-    }
-    if (audioContextRef.current) {
-      audioContextRef.current.close();
-      audioContextRef.current = null;
-    }
-    if (vadAnimationRef.current) {
-      cancelAnimationFrame(vadAnimationRef.current);
-      vadAnimationRef.current = null;
-    }
-    setIsRecording(false);
-    onStreamStop();
-  }, [isRecording, onStreamStop]);
+  }, [onChunk, onSilence, onStreamStart, onStreamStop, stopListening]);
 
   // Dismount safety cleanup
   useEffect(() => {

@@ -5,7 +5,7 @@ import requests
 
 FIREWORKS_API_URL = 'https://api.fireworks.ai/inference/v1/chat/completions'
 
-DEFAULT_MODEL = 'accounts/fireworks/models/llama-v3p1-70b-instruct'
+DEFAULT_MODEL = 'accounts/fireworks/models/llama-v3p1-8b-instruct'
 
 VALID_VERDICTS = ('True', 'False', 'Unverifiable')
 
@@ -36,6 +36,10 @@ def _api_key():
     return api_key
 
 
+MAX_TOKENS_PER_SENTENCE = 120
+MAX_TOKENS_BASE = 50
+
+
 def _build_payload(sentences):
     return {
         'model': os.environ.get('FIREWORKS_MODEL', DEFAULT_MODEL),
@@ -45,6 +49,7 @@ def _build_payload(sentences):
         ],
         'temperature': 0,
         'response_format': {'type': 'json_object'},
+        'max_tokens': MAX_TOKENS_BASE + MAX_TOKENS_PER_SENTENCE * len(sentences),
     }
 
 
