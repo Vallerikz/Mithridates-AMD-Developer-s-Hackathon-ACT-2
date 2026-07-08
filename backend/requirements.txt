@@ -47,6 +47,7 @@ pyasn1_modules==0.4.2
 pycparser==3.0
 pydantic==2.11.10
 pydantic_core==2.33.2
+pytest==8.3.4
 python-dotenv==1.0.1
 python-engineio==4.13.3
 python-socketio==5.16.3
