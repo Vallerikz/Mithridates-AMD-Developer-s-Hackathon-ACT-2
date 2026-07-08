@@ -7,6 +7,9 @@ import { io, Socket } from "socket.io-client";
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 const NAMESPACE = "/data_receive_space";
 
+// Shape emitted by the backend, before the client attaches a stable id.
+type WireFactCheckEvent = Omit<FactCheckEvent, "id">;
+
 /**
  * Custom hook to manage the WebSocket connection to the fact-checking engine.
  */
@@ -17,6 +20,7 @@ export function useStream() {
   const isStreaming = useRef(false);
   const socketRef = useRef<Socket | null>(null);
   const videoIdRef = useRef<number | null>(null);
+  const nextEventId = useRef(0);
 
   /**
    * Initializes the stream state and connects to the backend.
@@ -43,16 +47,15 @@ export function useStream() {
       videoIdRef.current = data.video_id;
     });
 
-    socket.on("response", (data: FactCheckEvent | FactCheckEvent[]) => {
+    socket.on("response", (data: WireFactCheckEvent | WireFactCheckEvent[]) => {
       console.log("Received AI Fact-Check:", data);
-      setEvents((prev) => {
-        if (Array.isArray(data)) {
-          // If the backend returns multiple events
-          return [...data.reverse(), ...prev];
-        }
-        // If the backend returns a single event
-        return [data, ...prev];
-      });
+      const incoming = Array.isArray(data) ? data : [data];
+      const withIds = incoming.map((event) => ({
+        ...event,
+        id: nextEventId.current++,
+      }));
+      // Newest first: reverse the batch, then prepend to the existing list
+      setEvents((prev) => [...withIds.reverse(), ...prev]);
     });
 
     socket.on("error", (error: { message: string }) => {

@@ -3,9 +3,13 @@
 import { useState, useCallback } from "react";
 
 // Experimental API declaration for TypeScript
+interface DocumentPictureInPicture {
+  requestWindow(options: { width: number; height: number }): Promise<Window>;
+}
+
 declare global {
   interface Window {
-    documentPictureInPicture?: any;
+    documentPictureInPicture?: DocumentPictureInPicture;
   }
 }
 
@@ -26,7 +30,7 @@ export function useDocumentPip() {
     }
 
     try {
-      const pip = await window.documentPictureInPicture.requestWindow({
+      const pip = await window.documentPictureInPicture!.requestWindow({
         width: 450,
         height: 600,
       });

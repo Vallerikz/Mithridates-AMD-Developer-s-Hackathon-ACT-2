@@ -32,7 +32,7 @@ export function Card({ event }: CardProps) {
       className="w-full bg-white rounded-2xl border border-slate-200/60 shadow-[0px_4px_24px_rgba(0,0,0,0.02)] p-10 flex flex-col items-center justify-center text-center space-y-6 transition-colors hover:border-slate-300"
     >
       <p className="text-2xl font-medium tracking-tight text-black max-w-xl leading-snug">
-        "{event.sentence}"
+        &ldquo;{event.sentence}&rdquo;
       </p>
 
       <div className={`text-xs font-semibold tracking-widest uppercase ${accentText}`}>

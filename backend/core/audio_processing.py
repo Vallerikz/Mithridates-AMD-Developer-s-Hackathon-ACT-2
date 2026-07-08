@@ -1,5 +1,7 @@
 import re
 
+from flask import current_app
+
 from core import db
 from core.services.transcription_service import transcribe
 from core.services.fact_check_service import (
@@ -26,6 +28,10 @@ def process_audio(audio_chunk, video):
         db.session.commit()
     except Exception:
         db.session.rollback()
+        current_app.logger.exception(
+            "Failed to save sentences for video %s",
+            video.video_id,
+        )
     responses = []
     if sentences:
         try:
