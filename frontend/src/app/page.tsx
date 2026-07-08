@@ -14,7 +14,7 @@ import { SummaryCard } from "../components/SummaryCard";
  * Manages the layout state and teleports the Fact-Check Feed into the PiP window when active.
  */
 export default function Home() {
-  const { events, sendAudioChunk, startStream, chunksSent, resetStream, fetchSessionSummary } = useStream();
+  const { events, sendAudioChunk, startStream, chunksSent, engineError, resetStream, fetchSessionSummary } = useStream();
   const { pipWindow, openPipOverlay, closePipOverlay } = useDocumentPip();
 
   const [isEnginePaused, setIsEnginePaused] = useState(false);
@@ -147,6 +147,11 @@ export default function Home() {
           </div>
 
           <div className="w-full pb-32 relative">
+            {engineError && (
+              <div className="mb-4 bg-rose-50 text-rose-500 px-4 py-2 rounded-lg text-sm font-medium tracking-wide shadow-sm border border-rose-100">
+                {engineError}
+              </div>
+            )}
             <Feed events={events} isEnginePaused={isEnginePaused} chunksSent={chunksSent} isVadSilent={isVadSilent} streamName={streamName} />
             
             {/* The Summary Card renders right after the feed if available */}

@@ -88,7 +88,7 @@ def receive_audio_chunk(data):
     else:
         socketio.emit(
             "error",
-            {"error": process_response['error_message']},
+            {"message": process_response['error_message']},
             room=request.sid,
             namespace="/data_receive_space",
         )

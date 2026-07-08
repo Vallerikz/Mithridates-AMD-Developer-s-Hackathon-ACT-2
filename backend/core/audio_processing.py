@@ -13,7 +13,18 @@ from core.models import SentenceSaveModel
 
 def process_audio(audio_chunk, video):
     """Processes the audio chunk and returns the response"""
-    transcribed_text = transcribe(audio_chunk)
+    try:
+        transcribed_text = transcribe(audio_chunk)
+    except Exception as exc:
+        current_app.logger.exception(
+            "Failed to transcribe audio for video %s",
+            video.video_id,
+        )
+        return {
+            "error": True,
+            "error_message": str(exc),
+            "responses": []
+        }
     sentences = [
         sentence.strip()
         for sentence in re.split(r'(?<=[.!?])\s+', transcribed_text)

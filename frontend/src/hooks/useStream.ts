@@ -16,6 +16,7 @@ type WireFactCheckEvent = Omit<FactCheckEvent, "id">;
 export function useStream() {
   const [events, setEvents] = useState<FactCheckEvent[]>([]);
   const [chunksSent, setChunksSent] = useState(0);
+  const [engineError, setEngineError] = useState<string | null>(null);
 
   const isStreaming = useRef(false);
   const socketRef = useRef<Socket | null>(null);
@@ -27,6 +28,7 @@ export function useStream() {
    */
   const startStream = useCallback(() => {
     isStreaming.current = true;
+    setEngineError(null);
 
     // Connect to Socket.IO namespace
     const socket = io(`${API_URL}${NAMESPACE}`, {
@@ -60,6 +62,7 @@ export function useStream() {
 
     socket.on("error", (error: { message: string }) => {
       console.error("Engine Error:", error.message);
+      setEngineError(error.message);
     });
 
     socket.on("disconnect", () => {
@@ -112,6 +115,7 @@ export function useStream() {
 
     setEvents([]);
     setChunksSent(0);
+    setEngineError(null);
   }, []);
 
   /**
@@ -138,6 +142,7 @@ export function useStream() {
   return {
     events,
     chunksSent,
+    engineError,
     sendAudioChunk,
     startStream,
     stopStream,
