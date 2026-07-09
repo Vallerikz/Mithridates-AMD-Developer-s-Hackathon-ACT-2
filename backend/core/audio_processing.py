@@ -25,6 +25,34 @@ _pending_text = {}
 #   buffer -> bytes from the last, still incomplete cluster onward
 _audio_state = {}
 
+# backchannel/filler words that never carry a checkable claim on their own
+_FILLER_SENTENCES = {
+    'ok', 'okay', 'yes', 'no', 'yeah', 'yep', 'nope', 'sure', 'right',
+    'thanks', 'thank you', 'please', 'hello', 'hi', 'hey', 'bye', 'goodbye',
+    'um', 'uh', 'uhh', 'umm', 'hmm', 'well', 'so', 'alright', 'got it',
+}
+
+_MIN_CLAIM_WORDS = 3
+
+
+def _is_factual_claim(sentence):
+    """Heuristic filter: skip fragments unlikely to carry a checkable claim.
+
+    Fact-checking every greeting, filler word, and question burns a Fireworks
+    call for sentences with nothing to verify, so only sentences that look
+    like declarative statements are sent through.
+    """
+    normalized = sentence.strip().rstrip('.!?').strip().lower()
+    if not normalized:
+        return False
+    if normalized in _FILLER_SENTENCES:
+        return False
+    if sentence.rstrip().endswith('?'):
+        return False
+    if len(normalized.split()) < _MIN_CLAIM_WORDS:
+        return False
+    return True
+
 
 def _collect_clusters(video_id, audio_chunk):
     """Rebuilds standalone webm segments from sliced MediaRecorder chunks.
@@ -97,11 +125,12 @@ def _store_and_check(video_id, sentences):
             video_id,
         )
 
-    if not sentences:
+    claims = [sentence for sentence in sentences if _is_factual_claim(sentence)]
+    if not claims:
         return {"error": False, "error_message": None, "responses": []}
 
     try:
-        responses = fact_check_sentences(sentences)
+        responses = fact_check_sentences(claims)
     except FireworksAPIError as exc:
         return {"error": True, "error_message": str(exc), "responses": []}
 
