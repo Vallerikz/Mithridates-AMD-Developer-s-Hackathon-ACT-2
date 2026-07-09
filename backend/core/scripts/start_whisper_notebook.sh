@@ -17,13 +17,19 @@ CLOUDFLARED_DIR="${CLOUDFLARED_DIR:-$WORKSPACE_DIR/bin}"
 export WHISPER_CACHE_DIR="${WHISPER_CACHE_DIR:-$WORKSPACE_DIR/whisper-cache}"
 SESSION="${SESSION:-whisper}"
 
+SERVER_CMD="source '$VENV_DIR/bin/activate' && WHISPER_CACHE_DIR='$WHISPER_CACHE_DIR' python3 '$SCRIPT_DIR/whisper_notebook_server.py'"
+
 if tmux has-session -t "$SESSION" 2>/dev/null; then
-    echo "tmux session '$SESSION' already running — attach with: tmux attach -t $SESSION"
+    # Reload the server with the freshly pulled code, but leave the tunnel
+    # window alone — killing cloudflared would change the public URL and force
+    # a WHISPER_ENDPOINT_URL update on the Mac.
+    echo "tmux session '$SESSION' already running — reloading server window (tunnel untouched, URL unchanged)"
+    tmux respawn-window -k -t "$SESSION:server" "$SERVER_CMD"
+    echo "Server restarting; model reload takes ~1 min before /transcribe answers again."
     exit 0
 fi
 
-tmux new-session -d -s "$SESSION" -n server \
-    "source '$VENV_DIR/bin/activate' && WHISPER_CACHE_DIR='$WHISPER_CACHE_DIR' python3 '$SCRIPT_DIR/whisper_notebook_server.py'"
+tmux new-session -d -s "$SESSION" -n server "$SERVER_CMD"
 
 tmux new-window -t "$SESSION" -n tunnel \
     "PATH='$CLOUDFLARED_DIR:\$PATH' cloudflared tunnel --url http://localhost:8001"
