@@ -19,14 +19,21 @@ declare global {
  */
 export function useDocumentPip() {
   const [pipWindow, setPipWindow] = useState<Window | null>(null);
+  // Lazy initializer: computed once on mount, never during SSR (`window` doesn't
+  // exist there). Safe from hydration mismatches because this flag only gates UI
+  // that appears after the user starts a stream, never the initial render.
+  const [isPipSupported] = useState(
+    () => typeof window !== "undefined" && "documentPictureInPicture" in window
+  );
 
   /**
    * Requests a new Document PiP window and clones the host document's stylesheets.
+   * Resolves to `true` once the overlay is open, and `false` when the caller must
+   * fall back to rendering the feed inline.
    */
-  const openPipOverlay = useCallback(async () => {
+  const openPipOverlay = useCallback(async (): Promise<boolean> => {
     if (!("documentPictureInPicture" in window)) {
-      alert("Your browser does not support Document Picture-in-Picture. Please use Google Chrome Desktop.");
-      return;
+      return false;
     }
 
     try {
@@ -47,8 +54,10 @@ export function useDocumentPip() {
       });
 
       setPipWindow(pip);
+      return true;
     } catch (err) {
       console.error("Failed to open PiP window:", err);
+      return false;
     }
   }, []);
 
@@ -64,6 +73,7 @@ export function useDocumentPip() {
 
   return {
     pipWindow,
+    isPipSupported,
     openPipOverlay,
     closePipOverlay,
   };

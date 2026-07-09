@@ -29,10 +29,15 @@ export function Listener({ onChunk, onSilence, onStreamStart, onStreamStop }: Li
 
   /**
    * Safely dismounts the recorder, VAD engine, and terminates all hardware tracks.
+   * Reads liveness from the refs rather than `isRecording`: Chrome's native
+   * "Stop sharing" fires through a handler captured while `isRecording` was still false.
    */
   const stopListening = useCallback(() => {
-    if (mediaRecorderRef.current && isRecording) {
-      mediaRecorderRef.current.stop();
+    const recorder = mediaRecorderRef.current;
+    if (recorder) {
+      if (recorder.state !== "inactive") {
+        recorder.stop();
+      }
       mediaRecorderRef.current = null;
     }
     if (streamRef.current) {
@@ -49,7 +54,7 @@ export function Listener({ onChunk, onSilence, onStreamStart, onStreamStop }: Li
     }
     setIsRecording(false);
     onStreamStop();
-  }, [isRecording, onStreamStop]);
+  }, [onStreamStop]);
 
   /**
    * Initializes the native browser Screen Share API, extracts the audio track,
@@ -65,14 +70,14 @@ export function Listener({ onChunk, onSilence, onStreamStart, onStreamStop }: Li
       });
       
       const videoTrack = stream.getVideoTracks()[0];
-      onStreamStart(videoTrack.label);
 
       const audioTracks = stream.getAudioTracks();
       if (audioTracks.length === 0) {
         stream.getTracks().forEach(track => track.stop());
-        onStreamStop();
         throw new Error("No audio shared. Please check 'Share tab audio' in the popup.");
       }
+
+      onStreamStart(videoTrack.label);
 
       // Isolate audio track to prevent heavy video data transmission
       const audioOnlyStream = new MediaStream([audioTracks[0]]);
@@ -134,25 +139,24 @@ export function Listener({ onChunk, onSilence, onStreamStart, onStreamStop }: Li
         setError(error?.message || "Failed to capture stream.");
       }
     }
-  }, [onChunk, onSilence, onStreamStart, onStreamStop, stopListening]);
+  }, [onChunk, onSilence, onStreamStart, stopListening]);
+
+  // Mirror the latest stopListening so the unmount cleanup never runs a stale one,
+  // and never re-fires just because a parent callback changed identity.
+  // Assigning happens in an effect (post-render), not during render, per react-hooks/refs.
+  const stopListeningRef = useRef(stopListening);
+  useEffect(() => {
+    stopListeningRef.current = stopListening;
+  });
 
   // Dismount safety cleanup
   useEffect(() => {
     return () => {
-      if (isRecording) {
-        stopListening();
+      if (streamRef.current) {
+        stopListeningRef.current();
       }
     };
-  }, [isRecording, stopListening]);
-
-  // Listen for global custom event triggered by the PiP window's "Stop Engine" button
-  useEffect(() => {
-    const handleGlobalStop = () => {
-      if (isRecording) stopListening();
-    };
-    window.addEventListener("stop-trulens", handleGlobalStop);
-    return () => window.removeEventListener("stop-trulens", handleGlobalStop);
-  }, [isRecording, stopListening]);
+  }, []);
 
   return (
     <div className="flex flex-col items-center gap-4 relative z-50">
