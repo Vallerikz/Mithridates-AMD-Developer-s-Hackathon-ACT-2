@@ -65,8 +65,7 @@ function CopyButton({ text }: { text: string }) {
         border border-[#232328] bg-transparent
         font-mono text-[11px] tracking-wide text-[#6b6878]
         hover:border-amber-400 hover:text-amber-400
-        transition-colors duration-200
-        focus-visible:outline focus-visible:outline-1 focus-visible:outline-amber-400
+        transition-colors duration-200 focus-visible:outline-1 focus-visible:outline-amber-400
       '
       aria-label='Copy summary to clipboard'
     >
