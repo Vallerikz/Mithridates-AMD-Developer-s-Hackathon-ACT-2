@@ -38,7 +38,7 @@ class SentenceSaveModel(db.Model):
     created_at = db.Column(
         db.DateTime(timezone=True),
         nullable=False,
-        default=datetime.utcnow,
+        default=lambda: datetime.now(UTC),
     )
 
     def __repr__(self):

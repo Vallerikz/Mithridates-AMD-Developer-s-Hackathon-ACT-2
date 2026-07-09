@@ -148,7 +148,8 @@ activemq-data/
 *.sage.py
 
 # Environments
-.env
+.env*
+!.env.sample
 .envrc
 .venv
 env/
@@ -218,8 +219,40 @@ __marimo__/
 .streamlit/secrets.toml
 
 
+# --- Frontend (Next.js) ignores ---
+frontend/node_modules/
+frontend/.pnp
+frontend/.pnp.*
+frontend/.yarn/*
+!frontend/.yarn/patches
+!frontend/.yarn/plugins
+!frontend/.yarn/releases
+!frontend/.yarn/versions
+
+frontend/coverage/
+
+frontend/.next/
+frontend/out/
+frontend/build/
+
+frontend/.DS_Store
+frontend/*.pem
+
+frontend/npm-debug.log*
+frontend/yarn-debug.log*
+frontend/yarn-error.log*
+frontend/.pnpm-debug.log*
+
+frontend/.env*
+frontend/.vercel
+
+frontend/*.tsbuildinfo
+frontend/next-env.d.ts
+
 # backend custom
+*.m4a
 *.mp3
+samples/
 
 # macOS
 .DS_Store
