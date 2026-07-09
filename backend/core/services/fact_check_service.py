@@ -50,6 +50,7 @@ def _build_payload(sentences):
         'temperature': 0,
         'response_format': {'type': 'json_object'},
         'max_tokens': MAX_TOKENS_BASE + MAX_TOKENS_PER_SENTENCE * len(sentences),
+        'reasoning_effort': 'low',
     }
 
 
