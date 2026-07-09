@@ -55,12 +55,9 @@ def _collect_clusters(video_id, audio_chunk):
     if len(starts) < 2:
         return []
 
-    segments = [
-        state["init"] + state["buffer"][starts[i]:starts[i + 1]]
-        for i in range(len(starts) - 1)
-    ]
+    segment = state["init"] + state["buffer"][starts[0]:starts[-1]]
     state["buffer"] = state["buffer"][starts[-1]:]
-    return segments
+    return [segment]
 
 
 def _drain_clusters(video_id):

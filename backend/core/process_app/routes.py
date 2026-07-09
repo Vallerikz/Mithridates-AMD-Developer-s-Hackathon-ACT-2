@@ -100,7 +100,7 @@ def receive_audio_chunk(data):
 
 
 @socketio.on("disconnect", namespace="/data_receive_space")
-def disconnect():
+def disconnect(reason=None):
     """
     Cleans up the session mapping.
     """
@@ -110,5 +110,21 @@ def disconnect():
     )
 
     video_id = _session_videos.pop(request.sid, None)
-    if video_id is not None:
-        flush_audio(video_id)
+    if video_id is None:
+        return
+
+    flush_response = flush_audio(video_id)
+    if flush_response["error"] is False:
+        if len(flush_response["responses"]) == 0:
+            return
+        socketio.emit(
+            "response", flush_response["responses"],
+            room=request.sid, namespace="/data_receive_space",
+        )
+    else:
+        socketio.emit(
+            "error",
+            {"message": flush_response["error_message"]},
+            room=request.sid,
+            namespace="/data_receive_space",
+        )
