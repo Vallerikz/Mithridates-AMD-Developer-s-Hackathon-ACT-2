@@ -10,7 +10,11 @@ set -euo pipefail
 # WHISPER_ENDPOINT_URL (+ "/transcribe") in the Mac's .env.
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-VENV_DIR="${VENV_DIR:-$HOME/whisper-venv}"
+# Must match setup_whisper_notebook.sh's persistent paths under /workspace.
+WORKSPACE_DIR="${WORKSPACE_DIR:-/workspace}"
+VENV_DIR="${VENV_DIR:-$WORKSPACE_DIR/whisper-venv}"
+CLOUDFLARED_DIR="${CLOUDFLARED_DIR:-$WORKSPACE_DIR/bin}"
+export WHISPER_CACHE_DIR="${WHISPER_CACHE_DIR:-$WORKSPACE_DIR/whisper-cache}"
 SESSION="${SESSION:-whisper}"
 
 if tmux has-session -t "$SESSION" 2>/dev/null; then
@@ -19,10 +23,10 @@ if tmux has-session -t "$SESSION" 2>/dev/null; then
 fi
 
 tmux new-session -d -s "$SESSION" -n server \
-    "source '$VENV_DIR/bin/activate' && python3 '$SCRIPT_DIR/whisper_notebook_server.py'"
+    "source '$VENV_DIR/bin/activate' && WHISPER_CACHE_DIR='$WHISPER_CACHE_DIR' python3 '$SCRIPT_DIR/whisper_notebook_server.py'"
 
 tmux new-window -t "$SESSION" -n tunnel \
-    "cloudflared tunnel --url http://localhost:8001"
+    "PATH='$CLOUDFLARED_DIR:\$PATH' cloudflared tunnel --url http://localhost:8001"
 
 echo "Started. tmux attach -t $SESSION   (windows: server, tunnel)"
 echo "Grab the https://xxxx.trycloudflare.com URL from the 'tunnel' window."

@@ -1,5 +1,6 @@
 """Runs Whisper behind an HTTP endpoint on the notebook"""
 
+import os
 import tempfile
 from pathlib import Path
 
@@ -8,7 +9,11 @@ from flask import Flask, request, jsonify
 
 app = Flask(__name__)
 
-model = whisper.load_model("large-v3")
+# Must match setup_whisper_notebook.sh's WHISPER_CACHE_DIR so the model already
+# downloaded during setup is found here instead of re-downloading under $HOME.
+WHISPER_CACHE_DIR = os.environ.get("WHISPER_CACHE_DIR", "/workspace/whisper-cache")
+
+model = whisper.load_model("large-v3", download_root=WHISPER_CACHE_DIR)
 
 
 @app.route("/transcribe", methods=["POST"])
