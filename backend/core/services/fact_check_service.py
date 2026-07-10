@@ -36,8 +36,8 @@ def _api_key():
     return api_key
 
 
-MAX_TOKENS_PER_SENTENCE = 120
-MAX_TOKENS_BASE = 50
+MAX_TOKENS_PER_SENTENCE = 200
+MAX_TOKENS_BASE = 2000
 
 
 def _build_payload(sentences):
@@ -87,7 +87,7 @@ def _normalize(sentence, raw_result):
     }
 
 
-def fact_check_sentences(sentences, timeout=20):
+def fact_check_sentences(sentences, timeout=60):
     if not sentences:
         return []
 
