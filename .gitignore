@@ -256,3 +256,6 @@ samples/
 
 # macOS
 .DS_Store
+
+# Agent Workspace Config
+.agents/

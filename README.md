@@ -81,3 +81,38 @@ You can access:
 
 - API: http://localhost:8000
 - Swagger Documentation: http://localhost:8000/apidocs/
+
+---
+
+
+## Running the Backend
+
+After completing the initial setup, start the backend from the project root directory (`Mithridates-AMD-Developer-s-Hackathon-ACT-2`):
+
+```bash
+docker compose build
+docker compose up -d
+```
+
+---
+
+## Running the Frontend
+
+The frontend is built with Next.js and React. To run it locally:
+
+1. Navigate to the `frontend` directory:
+   ```bash
+   cd frontend
+   ```
+
+2. Install the dependencies:
+   ```bash
+   npm install
+   ```
+
+3. Start the development server:
+   ```bash
+   npm run dev
+   ```
+
+4. Open [http://localhost:3000](http://localhost:3000) in your browser to view the application.

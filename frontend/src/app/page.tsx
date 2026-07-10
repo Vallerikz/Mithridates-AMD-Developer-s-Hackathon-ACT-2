@@ -8,6 +8,9 @@ import { Feed } from "../components/Feed";
 import { useStream } from "../hooks/useStream";
 import { useDocumentPip } from "../hooks/useDocumentPip";
 import { SummaryCard } from "../components/SummaryCard";
+import { AnimatedGradient } from "@/components/AnimatedGradient";
+import { PremiumScrollSection } from "@/components/PremiumScrollSection";
+import { TutorialScrollSection } from "@/components/TutorialScrollSection";
 
 /**
  * The main application page.
@@ -151,7 +154,7 @@ export default function Home() {
   );
 
   return (
-    <div className="min-h-screen bg-white selection:bg-slate-100 overflow-hidden">
+    <div className="min-h-screen bg-white selection:bg-slate-100">
 
       {/* Top Navbar */}
       <header className="absolute top-0 left-0 w-full p-6 flex justify-between items-center z-20">
@@ -161,14 +164,20 @@ export default function Home() {
       </header>
 
       {/* Main Content Area */}
-      <main className="flex-1 relative flex flex-col items-center w-full max-w-3xl mx-auto px-6 pt-32 pb-24">
+      <main className={`flex-1 relative flex flex-col items-center w-full ${isStreamActive ? 'pt-32 pb-24' : ''}`}>
 
-        {/* Hero Section */}
+        {/* Master Wrapper to keep Hero and Button pinned during the first scroll section, but scroll away afterwards */}
+        <div className={`w-full ${!isStreamActive ? 'relative z-40' : ''}`}>
+
+          {/* Sticky Header Wrapper */}
+          <div className={`w-full flex flex-col items-center z-40 ${!isStreamActive ? 'sticky top-0 h-screen pointer-events-none pt-32' : ''}`}>
+
+            {/* Hero Section */}
         <motion.div
           initial={{ opacity: 0, y: 20, filter: 'blur(8px)' }}
           animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
           transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-          className="text-center mb-16 space-y-4 max-w-3xl"
+          className="text-center mb-24 space-y-4 max-w-3xl mx-auto px-6 pointer-events-auto"
         >
           <h1 className="text-5xl font-bold tracking-tight text-black sm:text-6xl">
             Truth in Real-Time.
@@ -178,19 +187,21 @@ export default function Home() {
           </p>
         </motion.div>
 
-        {/* Action Area (Listener Button) */}
-        <div className="w-full flex justify-center mb-24 z-50">
-          <Listener
-            onChunk={handleChunk}
-            onSilence={handleSilence}
-            onStreamStart={handleStreamStart}
-            onStreamStop={handleStreamStop}
-          />
+          {/* Action Area (Listener Button) */}
+          <div className="w-full flex justify-center mb-0 z-50 max-w-3xl mx-auto px-6 pointer-events-auto">
+            <Listener
+              onChunk={handleChunk}
+              onSilence={handleSilence}
+              onStreamStart={handleStreamStart}
+              onStreamStop={handleStreamStop}
+            />
+          </div>
+
         </div>
 
         {/* Local Feed: the session must stay visible whenever the PiP window is not. */}
         {isStreamActive && !pipWindow && (
-          <div className="w-full">
+          <div className="w-full max-w-3xl mx-auto px-6">
             {isPipSupported ? (
               <div className="mb-6 flex justify-center">
                 <button
@@ -208,6 +219,14 @@ export default function Home() {
             {renderOverlay(false)}
           </div>
         )}
+
+        {/* Hide PremiumScrollSection when the stream is active so it doesn't get in the way */}
+        {!isStreamActive && <PremiumScrollSection key="premium-scroll" />}
+        
+        </div> {/* End of Master Wrapper */}
+
+        {/* Horizontal Tutorial Section */}
+        {!isStreamActive && <TutorialScrollSection key="tutorial-scroll" />}
       </main>
 
 
