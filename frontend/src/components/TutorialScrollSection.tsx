@@ -6,24 +6,27 @@ import Image from "next/image";
 
 const panels = [
   {
+    title: "Start a Live Session",
+    desc: "Launch the engine to begin a new real-time fact-checking session directly from your browser.",
+    img: "/step1.png"
+  },
+  {
     title: "Connect the Stream",
-    desc: "Tap the mic to instantly pipe any live audio into our local transcription engine.",
-    img: "" // Placeholder for user's image
+    desc: "Share your browser tab to instantly pipe any live audio into our local transcription pipeline.",
+    img: "/step2.png",
+    credit: "Source: Nikhil Kamath - Elon Musk: A Different Conversation"
   },
   {
     title: "Watch the Truth Unfold",
-    desc: "Claims are cross-referenced in real-time with an integrated knowledge graph.",
-    img: ""
-  },
-  {
-    title: "Pop It Out",
-    desc: "Browse seamlessly while the PiP overlay keeps you informed in any tab.",
-    img: ""
+    desc: "Claims are cross-referenced in real-time. Keep the PiP overlay open to stay informed in any tab.",
+    img: "/step3.png",
+    credit: "Source: Nikhil Kamath - Elon Musk: A Different Conversation"
   },
   {
     title: "Distilled Knowledge",
     desc: "End the session to receive a beautifully crafted summary report of all findings.",
-    img: ""
+    img: "/step4.png",
+    credit: "Source: Nikhil Kamath - Elon Musk: A Different Conversation"
   }
 ];
 
@@ -47,16 +50,24 @@ export function TutorialScrollSection() {
               <div className="max-w-6xl w-full flex flex-col md:flex-row items-center gap-12 md:gap-24">
                 
                 {/* Image Placeholder */}
-                <div className="flex-1 w-full aspect-video md:aspect-[4/3] bg-slate-50 rounded-3xl overflow-hidden relative shadow-sm border border-slate-200 flex items-center justify-center">
-                  {panel.img ? (
-                    <Image
-                      src={panel.img}
-                      alt={panel.title}
-                      fill
-                      className="object-cover"
-                    />
-                  ) : (
-                    <span className="text-slate-400 font-medium tracking-wide">Image Placeholder (Replace in code)</span>
+                <div className="flex-1 w-full flex flex-col items-center">
+                  <div className="w-full aspect-video bg-slate-50 rounded-3xl overflow-hidden relative shadow-sm border border-slate-200 flex items-center justify-center">
+                    {panel.img ? (
+                      <Image
+                        src={panel.img}
+                        alt={panel.title}
+                        fill
+                        className="object-contain p-2 md:p-4"
+                      />
+                    ) : (
+                      <span className="text-slate-400 font-medium tracking-wide">Image Placeholder (Replace in code)</span>
+                    )}
+                  </div>
+                  {/* Optional Source Credit */}
+                  {panel.credit && (
+                    <div className="mt-4 text-xs text-slate-400 font-medium tracking-wide text-center">
+                      {panel.credit}
+                    </div>
                   )}
                 </div>
                 
