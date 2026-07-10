@@ -71,6 +71,15 @@ export function Listener({ onChunk, onSilence, onStreamStart, onStreamStop }: Li
       
       const videoTrack = stream.getVideoTracks()[0];
 
+      // Only a single browser tab gives us isolated audio. A window or the whole
+      // screen mixes every source (other tabs, notifications, music) and makes the
+      // transcript meaningless, so reject anything that isn't a tab share.
+      const displaySurface = videoTrack.getSettings().displaySurface;
+      if (displaySurface && displaySurface !== "browser") {
+        stream.getTracks().forEach(track => track.stop());
+        throw new Error("Please share a browser tab (not a window or your entire screen) so we only capture that tab's audio.");
+      }
+
       const audioTracks = stream.getAudioTracks();
       if (audioTracks.length === 0) {
         stream.getTracks().forEach(track => track.stop());
@@ -136,9 +145,9 @@ export function Listener({ onChunk, onSilence, onStreamStart, onStreamStop }: Li
       setIsRecording(true);
 
     } catch (err: unknown) {
-      console.error("Screen share access denied or failed", err);
       const error = err instanceof Error ? err : null;
       if (error?.name !== "NotAllowedError") {
+        console.error("Screen share access denied or failed", err);
         setError(error?.message || "Failed to capture stream.");
       }
     }
@@ -171,13 +180,16 @@ export function Listener({ onChunk, onSilence, onStreamStart, onStreamStop }: Li
             : "bg-black text-white hover:bg-slate-900 shadow-xl hover:shadow-2xl hover:-translate-y-0.5"
         }`}
       >
-        {isRecording && (
-          <span className="relative flex h-3 w-3">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-3 w-3 bg-rose-500"></span>
-          </span>
-        )}
-        
+        <span
+          className={`relative flex h-3 w-3 transition-opacity duration-150 ${
+            isRecording ? "opacity-100" : "opacity-0 w-0 overflow-hidden"
+          }`}
+          aria-hidden={!isRecording}
+        >
+          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+          <span className="relative inline-flex rounded-full h-3 w-3 bg-rose-500"></span>
+        </span>
+
         {isRecording ? "Stop Overlay" : "Start Live Fact-Check"}
       </button>
 
