@@ -69,7 +69,7 @@ for i, chunk in enumerate(chunks):
     )
     time.sleep(INTERVAL)
 
-time.sleep(8)
+time.sleep(30)
 sio.disconnect()
 
 print(f">>> DONE. responses={state['responses']} errors={len(state['errors'])}")
