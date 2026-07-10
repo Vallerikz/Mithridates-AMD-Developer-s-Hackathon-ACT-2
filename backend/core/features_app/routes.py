@@ -27,10 +27,18 @@ def get_video_summary(video_id):
         sentence.sentence
         for sentence in video.sentences
     ]
-
-    summary = summarize(sentences)
+    if not sentences:
+        return jsonify({
+            "video_id": video.video_id,
+            "summary": "",
+        }), 200
+    summary_dict = summarize(sentences)
+    if not summary_dict["success"]:
+        return jsonify({
+            "error": summary_dict["error_message"]
+        }), 500
 
     return jsonify({
         "video_id": video.video_id,
-        "summary": summary,
+        "summary": summary_dict["summary"],
     }), 200
