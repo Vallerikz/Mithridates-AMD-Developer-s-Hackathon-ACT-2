@@ -8,6 +8,19 @@ from core.models import VideoSessionSaveModel
 _session_videos = {}
 
 
+def _emit_transcription(sid):
+    """Pushes the claims to the client before the fact-check call, so the
+    frontend can already display them while the verdicts are computed."""
+    def _callback(claims):
+        socketio.emit(
+            "transcription",
+            {"sentences": claims},
+            room=sid,
+            namespace="/data_receive_space",
+        )
+    return _callback
+
+
 @socketio.on("connect", namespace="/data_receive_space")
 def connect():
     """Socket.IO connection established."""
@@ -82,7 +95,9 @@ def receive_audio_chunk(data):
 
     _session_videos[request.sid] = video.video_id
 
-    process_response = process_audio(audio_chunk, video)
+    process_response = process_audio(
+        audio_chunk, video, on_claims=_emit_transcription(request.sid),
+    )
     if process_response["error"] is False:
         if len(process_response["responses"]) == 0:
             return
@@ -113,7 +128,9 @@ def disconnect(reason=None):
     if video_id is None:
         return
 
-    flush_response = flush_audio(video_id)
+    flush_response = flush_audio(
+        video_id, on_claims=_emit_transcription(request.sid),
+    )
     if flush_response["error"] is False:
         if len(flush_response["responses"]) == 0:
             return

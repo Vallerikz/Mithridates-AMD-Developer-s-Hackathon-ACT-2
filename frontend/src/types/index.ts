@@ -12,4 +12,6 @@ export interface FactCheckEvent {
   confidence: number;
   /** The detailed rationale explaining the verdict. */
   explanation: string;
+  /** True while the claim is transcribed but its verdict is still in flight. */
+  pending?: boolean;
 }

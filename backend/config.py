@@ -11,6 +11,17 @@ class Config(object):
     FLASK_DEBUG = False
     SECRET_KEY = os.environ.get('SECRET_KEY')
     SQLALCHEMY_TRACK_MODIFICATIONS = False
+    # Default pool (5 + 10 overflow = 15 connections) runs out under a
+    # handful of concurrent Socket.IO streams: each audio chunk holds its DB
+    # connection open for the whole (now-serialized, since the Whisper mutex
+    # fix) blocking transcription round-trip. Raised to give a live
+    # multi-viewer demo headroom.
+    SQLALCHEMY_ENGINE_OPTIONS = {
+        'pool_size': 20,
+        'max_overflow': 20,
+        'pool_timeout': 60,
+        'pool_pre_ping': True,
+    }
 
 
 class DevelopmentConfig(Config):

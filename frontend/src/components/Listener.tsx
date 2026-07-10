@@ -113,10 +113,13 @@ export function Listener({ onChunk, onSilence, onStreamStart, onStreamStop }: Li
       const mediaRecorder = new MediaRecorder(audioOnlyStream);
       mediaRecorderRef.current = mediaRecorder;
 
+      let isFirstChunk = true;
       mediaRecorder.ondataavailable = async (e) => {
         if (e.data.size > 0) {
           // VAD Gatekeeper: Only send chunk if volume spiked above threshold (2 out of 255)
-          if (maxAmplitude > 2) {
+          // CRITICAL: We MUST never drop the first chunk, even if silent, because it contains the WebM EBML header!
+          if (isFirstChunk || maxAmplitude > 2) {
+            isFirstChunk = false;
             const arrayBuffer = await e.data.arrayBuffer();
             onChunk(arrayBuffer);
           } else {

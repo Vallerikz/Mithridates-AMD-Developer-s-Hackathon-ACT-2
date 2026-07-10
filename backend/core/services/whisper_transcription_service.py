@@ -27,6 +27,9 @@ def transcribe(audio_chunk: bytes) -> str:
             },
             timeout=30,
         )
-        response.raise_for_status()
+        if not response.ok:
+            raise RuntimeError(
+                f"{response.status_code} error from Whisper endpoint: {response.text[:2000]}"
+            )
 
         return response.json()["text"].strip()

@@ -20,10 +20,57 @@ CLUSTER_ID = b"\x1f\x43\xb6\x75"
 
 # unfinished sentence held over to the next chunk, keyed by video_id
 _pending_text = {}
+# verdicts already obtained for this video, keyed by video_id then by the
+# exact sentence text; a repeated claim is answered from here instead of
+# burning another Fireworks call
+_verdict_cache = {}
 # webm reconstruction state, keyed by video_id:
 #   init   -> container header (bytes before the first cluster)
 #   buffer -> bytes from the last, still incomplete cluster onward
 _audio_state = {}
+
+# backchannel/filler words that never carry a checkable claim on their own
+_FILLER_SENTENCES = {
+    'ok', 'okay', 'yes', 'no', 'yeah', 'yep', 'nope', 'sure', 'right',
+    'thanks', 'thank you', 'please', 'hello', 'hi', 'hey', 'bye', 'goodbye',
+    'um', 'uh', 'uhh', 'umm', 'hmm', 'well', 'so', 'alright', 'got it',
+}
+
+_MIN_CLAIM_WORDS = 3
+
+# how many prior sentences from the same video to give the model as situational
+# context (not fact-checked themselves, just there so it knows what's going on)
+_CONTEXT_WINDOW_SIZE = 8
+
+
+def _recent_context(video_id):
+    rows = (
+        SentenceSaveModel.query
+        .filter_by(video_id=video_id)
+        .order_by(SentenceSaveModel.id.desc())
+        .limit(_CONTEXT_WINDOW_SIZE)
+        .all()
+    )
+    return [row.sentence for row in reversed(rows)]
+
+
+def _is_factual_claim(sentence):
+    """Heuristic filter: skip fragments unlikely to carry a checkable claim.
+
+    Fact-checking every greeting, filler word, and question burns a Fireworks
+    call for sentences with nothing to verify, so only sentences that look
+    like declarative statements are sent through.
+    """
+    normalized = sentence.strip().rstrip('.!?').strip().lower()
+    if not normalized:
+        return False
+    if normalized in _FILLER_SENTENCES:
+        return False
+    if sentence.rstrip().endswith('?'):
+        return False
+    if len(normalized.split()) < _MIN_CLAIM_WORDS:
+        return False
+    return True
 
 
 def _collect_clusters(video_id, audio_chunk):
@@ -84,7 +131,14 @@ def _split_sentences(video_id, text, flush_pending=False):
     return sentences
 
 
-def _store_and_check(video_id, sentences):
+def _store_and_check(video_id, sentences, on_claims=None):
+    if not sentences:
+        return {"error": False, "error_message": None, "responses": []}
+
+    # grab the context before the new sentences are committed, otherwise the
+    # window would contain the very sentences being checked
+    context = _recent_context(video_id)
+
     for sentence in sentences:
         sentence_ins = SentenceSaveModel(video_id=video_id, sentence=sentence)
         db.session.add(sentence_ins)
@@ -97,18 +151,33 @@ def _store_and_check(video_id, sentences):
             video_id,
         )
 
-    if not sentences:
+    claims = [sentence for sentence in sentences if _is_factual_claim(sentence)]
+    if not claims:
         return {"error": False, "error_message": None, "responses": []}
 
-    try:
-        responses = fact_check_sentences(sentences)
-    except FireworksAPIError as exc:
-        return {"error": True, "error_message": str(exc), "responses": []}
+    # let the caller show the claims right away, before the fact-check call
+    if on_claims is not None:
+        on_claims(claims)
 
+    cache = _verdict_cache.setdefault(video_id, {})
+    novel = []
+    for claim in claims:
+        if claim not in cache and claim not in novel:
+            novel.append(claim)
+
+    if novel:
+        try:
+            results = fact_check_sentences(novel, context_sentences=context)
+        except FireworksAPIError as exc:
+            return {"error": True, "error_message": str(exc), "responses": []}
+        for claim, result in zip(novel, results):
+            cache[claim] = result
+
+    responses = [cache[claim] for claim in claims]
     return {"error": False, "error_message": None, "responses": responses}
 
 
-def _transcribe_segments(video_id, segments, flush_pending=False):
+def _transcribe_segments(video_id, segments, flush_pending=False, on_claims=None):
     sentences = []
     for segment in segments:
         try:
@@ -130,16 +199,20 @@ def _transcribe_segments(video_id, segments, flush_pending=False):
         if leftover:
             sentences.append(leftover)
 
-    return _store_and_check(video_id, sentences)
+    return _store_and_check(video_id, sentences, on_claims=on_claims)
 
 
-def process_audio(audio_chunk, video):
+def process_audio(audio_chunk, video, on_claims=None):
     """Processes an incoming audio chunk and returns the response"""
     segments = _collect_clusters(video.video_id, audio_chunk)
-    return _transcribe_segments(video.video_id, segments)
+    return _transcribe_segments(video.video_id, segments, on_claims=on_claims)
 
 
-def flush_audio(video_id):
+def flush_audio(video_id, on_claims=None):
     """Processes the final buffered audio when a session ends"""
     segments = _drain_clusters(video_id)
-    return _transcribe_segments(video_id, segments, flush_pending=True)
+    response = _transcribe_segments(
+        video_id, segments, flush_pending=True, on_claims=on_claims,
+    )
+    _verdict_cache.pop(video_id, None)
+    return response

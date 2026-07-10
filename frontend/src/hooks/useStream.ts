@@ -49,20 +49,63 @@ export function useStream() {
       videoIdRef.current = data.video_id;
     });
 
+    socket.on("transcription", (data: { sentences: string[] }) => {
+      const sentences = data?.sentences ?? [];
+      if (sentences.length === 0) return;
+      // Show the claims immediately as pending cards; the verdicts will
+      // replace them when the "response" event arrives
+      const pendingEvents: FactCheckEvent[] = sentences.map((sentence) => ({
+        id: nextEventId.current++,
+        sentence,
+        verdict: "Checking",
+        confidence: 0,
+        explanation: "",
+        pending: true,
+      }));
+      // Newest first: reverse the batch, then prepend to the existing list
+      setEvents((prev) => [...pendingEvents.reverse(), ...prev]);
+    });
+
     socket.on("response", (data: WireFactCheckEvent | WireFactCheckEvent[]) => {
       console.log("Received AI Fact-Check:", data);
       const incoming = Array.isArray(data) ? data : [data];
-      const withIds = incoming.map((event) => ({
+      const stamped = incoming.map((event) => ({
         ...event,
         id: nextEventId.current++,
+        pending: false,
       }));
-      // Newest first: reverse the batch, then prepend to the existing list
-      setEvents((prev) => [...withIds.reverse(), ...prev]);
+      setEvents((prev) => {
+        const next = [...prev];
+        const fresh: FactCheckEvent[] = [];
+        for (const event of stamped) {
+          // Resolve the matching pending card in place, keeping its id so
+          // the card morphs into its verdict instead of re-entering the feed
+          const idx = next.findIndex(
+            (e) => e.pending && e.sentence === event.sentence,
+          );
+          if (idx !== -1) next[idx] = { ...event, id: next[idx].id };
+          else fresh.push(event);
+        }
+        return [...fresh.reverse(), ...next];
+      });
     });
 
     socket.on("error", (error: { message: string }) => {
       console.error("Engine Error:", error.message);
       setEngineError(error.message);
+      // The failed batch will never get verdicts; settle its pending cards
+      setEvents((prev) =>
+        prev.map((event) =>
+          event.pending
+            ? {
+                ...event,
+                pending: false,
+                verdict: "Unverified",
+                explanation: "The fact-check request failed for this claim.",
+              }
+            : event,
+        ),
+      );
     });
 
     socket.on("disconnect", () => {

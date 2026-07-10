@@ -1,14 +1,37 @@
 """Runs Whisper behind an HTTP endpoint on the notebook"""
 
+import os
 import tempfile
+import threading
+import traceback
 from pathlib import Path
 
 import whisper
 from flask import Flask, request, jsonify
+from werkzeug.exceptions import HTTPException
 
 app = Flask(__name__)
 
-model = whisper.load_model("large-v3")
+# Must match setup_whisper_notebook.sh's WHISPER_CACHE_DIR so the model already
+# downloaded during setup is found here instead of re-downloading under $HOME.
+WHISPER_CACHE_DIR = os.environ.get("WHISPER_CACHE_DIR", "/workspace/whisper-cache")
+
+model = whisper.load_model("large-v3", download_root=WHISPER_CACHE_DIR)
+
+# Flask serves each request in its own thread, but the Whisper model is a single
+# shared instance that is not thread-safe: two overlapping transcribe() calls
+# crash both requests. Serialize inference; concurrent callers just wait.
+_model_lock = threading.Lock()
+
+
+@app.errorhandler(Exception)
+def handle_error(exc):
+    if isinstance(exc, HTTPException):
+        return exc
+    # The notebook console has no usable scrollback, so the response body is the
+    # only place a traceback can be read from (the backend logs it).
+    return jsonify({"error": f"{type(exc).__name__}: {exc}",
+                    "traceback": traceback.format_exc()}), 500
 
 
 @app.route("/transcribe", methods=["POST"])
@@ -18,12 +41,13 @@ def transcribe():
     suffix = Path(audio_file.filename).suffix or ".webm"
     with tempfile.NamedTemporaryFile(suffix=suffix) as tmp:
         audio_file.save(tmp.name)
-        result = model.transcribe(
-            tmp.name,
-            temperature=0,
-            condition_on_previous_text=False,
-            no_speech_threshold=0.6,
-        )
+        with _model_lock:
+            result = model.transcribe(
+                tmp.name,
+                temperature=0,
+                condition_on_previous_text=False,
+                no_speech_threshold=0.6,
+            )
 
     segments = [
         seg["text"].strip()

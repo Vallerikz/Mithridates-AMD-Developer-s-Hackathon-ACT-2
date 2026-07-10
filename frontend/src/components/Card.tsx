@@ -15,12 +15,13 @@ interface CardProps {
 export function Card({ event }: CardProps) {
   const isFalse = event.verdict.toLowerCase() === "false";
   const isTrue = event.verdict.toLowerCase() === "true";
-  
+  const hasConfidence = isFalse || isTrue;
+
   // Dynamic typographical accent color
-  const accentText = isFalse 
-    ? "text-rose-500" 
-    : isTrue 
-      ? "text-emerald-500" 
+  const accentText = isFalse
+    ? "text-rose-500"
+    : isTrue
+      ? "text-emerald-500"
       : "text-slate-500";
 
   return (
@@ -35,13 +36,26 @@ export function Card({ event }: CardProps) {
         &ldquo;{event.sentence}&rdquo;
       </p>
 
-      <div className={`text-xs font-semibold tracking-widest uppercase ${accentText}`}>
-        {event.verdict} • {Math.round(event.confidence * 100)}% Match
+      <div
+        className={`text-xs font-semibold tracking-widest uppercase ${
+          event.pending ? "text-slate-400 animate-pulse" : accentText
+        }`}
+      >
+        {event.pending ? (
+          "Checking…"
+        ) : (
+          <>
+            {event.verdict}
+            {hasConfidence && ` • ${Math.round(event.confidence * 100)}% Match`}
+          </>
+        )}
       </div>
 
-      <p className="text-sm text-slate-500 max-w-lg leading-relaxed">
-        {event.explanation}
-      </p>
+      {!event.pending && (
+        <p className="text-sm text-slate-500 max-w-lg leading-relaxed">
+          {event.explanation}
+        </p>
+      )}
     </motion.div>
   );
 }

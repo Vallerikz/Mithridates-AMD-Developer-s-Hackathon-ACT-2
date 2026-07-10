@@ -1,5 +1,6 @@
 import json
 import os
+from datetime import datetime, UTC
 
 import requests
 
@@ -10,18 +11,34 @@ DEFAULT_MODEL = 'accounts/fireworks/models/llama-v3p1-8b-instruct'
 VALID_VERDICTS = ('True', 'False', 'Unverifiable')
 
 FACT_CHECK_SYSTEM_PROMPT = (
-    "You are a rigorous fact-checking assistant. You will receive a JSON array "
-    "of sentences transcribed from a live video. For each sentence, decide "
-    "whether the factual claim it makes is true, false, or unverifiable given "
-    "well-established general knowledge.\n"
+    "You are a rigorous fact-checking assistant. You will receive a JSON object "
+    "whose \"sentences\" array contains sentences transcribed from a live video. "
+    "For each sentence, decide whether the factual claim it makes is true, "
+    "false, or unverifiable given well-established general knowledge.\n"
     "Respond with a single JSON object of the form {\"results\": [...]}. The "
     "\"results\" array must contain exactly one object per input sentence, in "
     "the same order, and each object must have these keys:\n"
-    "  - \"sentence\": the sentence, copied verbatim\n"
     "  - \"verdict\": one of \"True\", \"False\", \"Unverifiable\"\n"
     "  - \"confidence\": a number between 0 and 1\n"
     "  - \"explanation\": a short, one-sentence justification\n"
     "Respond with the JSON object only, no surrounding prose or markdown."
+)
+
+
+def _system_prompt_with_date():
+    today = datetime.now(UTC).strftime('%Y-%m-%d')
+    return (
+        f"Today's real-world date is {today}. Use it to judge claims about "
+        "recent events, ages, durations, or anything time-sensitive.\n\n"
+        + FACT_CHECK_SYSTEM_PROMPT
+    )
+
+
+CONTEXT_SYSTEM_PROMPT_SUFFIX = (
+    "\n\nYou may also receive a \"context_sentences\" array: earlier sentences "
+    "from the same video, given only so you understand the topic and situation. "
+    "Do not fact-check them and do not include them in \"results\" — only the "
+    "sentences in the \"sentences\" array get a verdict."
 )
 
 
@@ -36,16 +53,22 @@ def _api_key():
     return api_key
 
 
-MAX_TOKENS_PER_SENTENCE = 120
-MAX_TOKENS_BASE = 50
+MAX_TOKENS_PER_SENTENCE = 200
+MAX_TOKENS_BASE = 2000
 
 
-def _build_payload(sentences):
+def _build_payload(sentences, context_sentences=None):
+    system_prompt = _system_prompt_with_date()
+    user_content = {'sentences': sentences}
+    if context_sentences:
+        system_prompt += CONTEXT_SYSTEM_PROMPT_SUFFIX
+        user_content['context_sentences'] = context_sentences
+
     return {
         'model': os.environ.get('FIREWORKS_MODEL', DEFAULT_MODEL),
         'messages': [
-            {'role': 'system', 'content': FACT_CHECK_SYSTEM_PROMPT},
-            {'role': 'user', 'content': json.dumps(sentences)},
+            {'role': 'system', 'content': system_prompt},
+            {'role': 'user', 'content': json.dumps(user_content)},
         ],
         'temperature': 0,
         'response_format': {'type': 'json_object'},
@@ -87,7 +110,7 @@ def _normalize(sentence, raw_result):
     }
 
 
-def fact_check_sentences(sentences, timeout=20):
+def fact_check_sentences(sentences, context_sentences=None, timeout=60):
     if not sentences:
         return []
 
@@ -100,7 +123,7 @@ def fact_check_sentences(sentences, timeout=20):
         response = requests.post(
             FIREWORKS_API_URL,
             headers=headers,
-            json=_build_payload(sentences),
+            json=_build_payload(sentences, context_sentences=context_sentences),
             timeout=timeout,
         )
         response.raise_for_status()

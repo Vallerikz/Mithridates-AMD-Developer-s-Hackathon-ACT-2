@@ -2,16 +2,16 @@
 ## AMD Hackathon Sprint Workspace
 
 
-# Backend Setup
+## Backend Initial Setup
 
-## Prerequisites
+### Prerequisites
 
 - Docker
 - Docker Compose
 
-## 1. Configure Environment Variables
+### 1. Configure Environment Variables
 
-### Root `.env`
+#### Root `.env`
 
 In the project root directory, create a `.env` file and copy the contents from:
 
@@ -24,7 +24,7 @@ For development, you can either:
 - Leave the PostgreSQL password as `postgres`, **or**
 - Set your own password and update the `DATABASE_URI` in `backend/.env` accordingly.
 
-### Backend `.env`
+#### Backend `.env`
 
 In the `backend/` directory, create another `.env` file and copy the contents from:
 
@@ -45,7 +45,7 @@ GEMINI_API_KEY=<your-api-key>
 
 ---
 
-## 2. Build and Start the Containers
+### 2. Build and Start the Containers
 
 From the project root directory (`Mithridates-AMD-Developer-s-Hackathon-ACT-2`), run:
 
@@ -56,7 +56,7 @@ docker compose up -d
 
 ---
 
-## 3. Run Database Migrations
+### 3. Run Database Migrations
 
 Open a shell inside the backend container:
 
@@ -73,7 +73,7 @@ flask db upgrade
 
 ---
 
-## 4. Verify the Backend
+### 4. Verify the Backend
 
 The backend should now be running.
 

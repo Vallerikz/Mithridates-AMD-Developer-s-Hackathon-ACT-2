@@ -73,7 +73,7 @@ def test_receive_audio_chunk_happy_path(socket_client, monkeypatch):
         fake_transcribe('The sky is blue. Cats can fly.'),
     )
 
-    def fake_fact_check(sentences, timeout=20):
+    def fake_fact_check(sentences, context_sentences=None, timeout=20):
         return [
             {
                 'sentence': sentence,
@@ -95,8 +95,12 @@ def test_receive_audio_chunk_happy_path(socket_client, monkeypatch):
     )
     received = socket_client.get_received(namespace=NAMESPACE)
 
-    assert received[0]['name'] == 'response'
-    results = received[0]['args'][0]
+    # the claims are pushed right after transcription, before the verdicts
+    assert received[0]['name'] == 'transcription'
+    assert received[0]['args'][0] == {'sentences': ['The sky is blue.', 'Cats can fly.']}
+
+    assert received[1]['name'] == 'response'
+    results = received[1]['args'][0]
     assert len(results) == 2
     for result in results:
         assert set(result.keys()) == {'sentence', 'verdict', 'confidence', 'explanation'}
@@ -123,7 +127,7 @@ def test_receive_audio_chunk_fireworks_failure(socket_client, monkeypatch):
         fake_transcribe('The sky is blue.'),
     )
 
-    def boom(sentences, timeout=20):
+    def boom(sentences, context_sentences=None, timeout=20):
         raise FireworksAPIError('Fireworks API request failed')
 
     monkeypatch.setattr(audio_processing, 'fact_check_sentences', boom)
@@ -137,5 +141,53 @@ def test_receive_audio_chunk_fireworks_failure(socket_client, monkeypatch):
     )
     received = socket_client.get_received(namespace=NAMESPACE)
 
-    assert received[0]['name'] == 'error'
-    assert received[0]['args'][0]['message'] == 'Fireworks API request failed'
+    # the transcription event fires before the fact-check call fails
+    assert received[0]['name'] == 'transcription'
+    assert received[1]['name'] == 'error'
+    assert received[1]['args'][0]['message'] == 'Fireworks API request failed'
+
+
+def test_duplicate_claims_use_cached_verdicts(socket_client, monkeypatch):
+    monkeypatch.setattr(
+        audio_processing, 'transcribe',
+        fake_transcribe('The sky is blue. The sky is blue.'),
+    )
+
+    calls = []
+
+    def fake_fact_check(sentences, context_sentences=None, timeout=20):
+        calls.append(list(sentences))
+        return [
+            {
+                'sentence': sentence,
+                'verdict': 'True',
+                'confidence': 0.9,
+                'explanation': 'mocked explanation',
+            }
+            for sentence in sentences
+        ]
+
+    monkeypatch.setattr(audio_processing, 'fact_check_sentences', fake_fact_check)
+
+    video_id = create_session(socket_client)
+
+    for _ in range(2):
+        socket_client.emit(
+            'receive_audio_chunk',
+            {'video_id': video_id, 'audio_chunk': webm_chunk(b'first', b'second')},
+            namespace=NAMESPACE,
+        )
+    received = socket_client.get_received(namespace=NAMESPACE)
+
+    # every repetition of an already-checked sentence is served from the
+    # cache: the API only ever sees the sentence once
+    assert calls == [['The sky is blue.']]
+
+    responses = [event for event in received if event['name'] == 'response']
+    assert len(responses) == 2
+    for response in responses:
+        results = response['args'][0]
+        assert len(results) == 2
+        for result in results:
+            assert result['sentence'] == 'The sky is blue.'
+            assert result['verdict'] == 'True'
