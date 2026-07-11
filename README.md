@@ -175,3 +175,85 @@ After completing the initial setup, start the backend from the project root dire
 docker compose build
 docker compose up -d
 ```
+<<<<<<< HEAD
+
+---
+
+## Running the Frontend
+
+The frontend is built with Next.js and React. To run it locally:
+
+1. Navigate to the `frontend` directory:
+   ```bash
+   cd frontend
+   ```
+
+2. Install the dependencies:
+   ```bash
+   npm install
+   ```
+
+3. Start the development server:
+   ```bash
+   npm run dev
+   ```
+
+4. Open [http://localhost:3000](http://localhost:3000) in your browser to view the application.
+
+---
+
+## Whisper Model Setup (AMD GPU)
+
+Transcription runs on Whisper `large-v3`, self-hosted on an **AMD GPU** using an
+AMD Developer Cloud Jupyter notebook (ROCm 7.2.1, AMD Radeon Navi 3x). The
+backend reaches it over a Cloudflare tunnel through `WHISPER_ENDPOINT_URL`.
+
+All scripts live in `backend/core/scripts/`.
+
+### 1. First-time notebook setup
+
+Launch a GPU notebook from the AMD Developer portal and clone this repo into
+`/workspace` (the only volume that persists across container restarts). Then run
+once:
+
+```bash
+bash backend/core/scripts/setup_whisper_notebook.sh
+```
+
+This creates a Python venv, installs PyTorch built for ROCm and `openai-whisper`,
+downloads the `cloudflared` binary, and caches the `large-v3` weights (~2.9 GB).
+Everything is stored under `/workspace`, so a re-run after a restart only
+reinstalls `ffmpeg`/`tmux` and skips the large downloads.
+
+### 2. Start the server (each session)
+
+```bash
+bash backend/core/scripts/start_whisper_notebook.sh
+```
+
+This launches the Whisper HTTP server (port `8001`) and a Cloudflare quick tunnel
+inside a detached `tmux` session, so both survive an SSH disconnect. Copy the
+`https://xxxx.trycloudflare.com` URL it prints from the `tunnel` window.
+
+On a fresh or resumed notebook you can chain pull + setup + start in one step:
+
+```bash
+bash backend/core/scripts/notebook_boot.sh
+```
+
+### 3. Point the backend at the tunnel
+
+On the machine running the backend:
+
+```bash
+bash backend/core/scripts/set_whisper_url.sh https://xxxx.trycloudflare.com
+```
+
+This rewrites `WHISPER_ENDPOINT_URL` in `backend/.env`, checks the endpoint is
+answering, and recreates the backend container.
+
+> The quick tunnel prints a new URL on every notebook restart. For a fixed URL,
+> `setup_cloudflare_tunnel.sh` sets up a named tunnel (requires a domain whose
+> DNS is on Cloudflare).
+=======
+>>>>>>> dbcea2270cd8be41b6510917687681c89955c628
