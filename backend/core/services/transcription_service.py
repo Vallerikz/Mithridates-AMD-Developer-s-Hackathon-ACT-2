@@ -13,7 +13,7 @@ def transcribe(audio_chunk: bytes) -> str:
     """Transcribes an audio chunk."""
 
     response = client.models.generate_content(
-        model="gemini-2.5-flash-lite",
+        model=os.environ.get("GEMINI_TRANSCRIPTION_MODEL"),
         contents=[
             "Transcribe this audio. Return only the spoken text.",
             types.Part.from_bytes(
