@@ -4,10 +4,6 @@ from datetime import datetime, UTC
 
 import requests
 
-FIREWORKS_API_URL = 'https://api.fireworks.ai/inference/v1/chat/completions'
-
-DEFAULT_MODEL = 'accounts/fireworks/models/llama-v3p1-8b-instruct'
-
 VALID_VERDICTS = ('True', 'False', 'Unverifiable')
 
 FACT_CHECK_SYSTEM_PROMPT = (
@@ -64,8 +60,9 @@ def _build_payload(sentences, context_sentences=None):
         system_prompt += CONTEXT_SYSTEM_PROMPT_SUFFIX
         user_content['context_sentences'] = context_sentences
 
+    FIREWORKS_DEFAULT_MODEL = os.environ.get("FIREWORKS_DEFAULT_MODEL")
     return {
-        'model': os.environ.get('FIREWORKS_MODEL', DEFAULT_MODEL),
+        'model': os.environ.get('FIREWORKS_MODEL', FIREWORKS_DEFAULT_MODEL),
         'messages': [
             {'role': 'system', 'content': system_prompt},
             {'role': 'user', 'content': json.dumps(user_content)},
@@ -121,7 +118,7 @@ def fact_check_sentences(sentences, context_sentences=None, timeout=60):
 
     try:
         response = requests.post(
-            FIREWORKS_API_URL,
+            os.environ.get("FIREWORKS_API_URL"),
             headers=headers,
             json=_build_payload(sentences, context_sentences=context_sentences),
             timeout=timeout,
