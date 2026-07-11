@@ -175,7 +175,6 @@ After completing the initial setup, start the backend from the project root dire
 docker compose build
 docker compose up -d
 ```
-<<<<<<< HEAD
 
 ---
 
@@ -255,5 +254,3 @@ answering, and recreates the backend container.
 > The quick tunnel prints a new URL on every notebook restart. For a fixed URL,
 > `setup_cloudflare_tunnel.sh` sets up a named tunnel (requires a domain whose
 > DNS is on Cloudflare).
-=======
->>>>>>> dbcea2270cd8be41b6510917687681c89955c628
