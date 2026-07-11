@@ -148,6 +148,7 @@ docker exec -it backend-app sh
 Then run:
 
 ```bash
+python manage.py create_db
 flask db stamp head
 flask db upgrade
 ```
