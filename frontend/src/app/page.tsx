@@ -167,7 +167,7 @@ export default function Home() {
       <main className={`flex-1 relative flex flex-col items-center w-full ${isStreamActive ? 'pt-32 pb-24' : ''}`}>
 
         {/* Master Wrapper to keep Hero and Button pinned during the first scroll section, but scroll away afterwards */}
-        <div className={`w-full ${!isStreamActive ? 'relative z-40' : ''}`}>
+        <div className={`w-full ${!isStreamActive ? 'relative z-40 mb-24' : ''}`}>
 
           {/* Sticky Header Wrapper */}
           <div className={`w-full flex flex-col items-center z-40 ${!isStreamActive ? 'sticky top-0 h-screen pointer-events-none pt-32' : ''}`}>

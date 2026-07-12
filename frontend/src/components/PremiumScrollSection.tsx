@@ -40,7 +40,7 @@ export function PremiumScrollSection() {
   const scale5 = useTransform(scrollYProgress,   [0, 0.78, 0.88, 1], [0.95, 0.951, 1, 1.001]);
 
   return (
-    <div ref={containerRef} className="h-[400vh] w-full relative mt-0 mb-24">
+    <div ref={containerRef} className="h-[300vh] w-full relative -mt-[65vh]">
       <div className="sticky top-0 h-screen w-full flex items-center justify-center overflow-hidden pt-[40vh]">
         
         {/* Ambient aesthetic glow */}
