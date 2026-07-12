@@ -27,4 +27,6 @@ def db_tables(app):
 def socket_client(app):
     client = socketio.test_client(app, namespace='/data_receive_space')
     yield client
-    client.disconnect(namespace='/data_receive_space')
+    # some tests disconnect the client themselves to exercise the cleanup path
+    if client.is_connected(namespace='/data_receive_space'):
+        client.disconnect(namespace='/data_receive_space')

@@ -28,6 +28,10 @@ _verdict_cache = {}
 #   init   -> container header (bytes before the first cluster)
 #   buffer -> bytes from the last, still incomplete cluster onward
 _audio_state = {}
+# title of the shared tab, keyed by video_id; tells the model what it is
+# listening to (who is speaking, on what subject) instead of judging every
+# sentence in a vacuum
+_video_context = {}
 
 # backchannel/filler words that never carry a checkable claim on their own
 _FILLER_SENTENCES = {
@@ -41,6 +45,19 @@ _MIN_CLAIM_WORDS = 3
 # how many prior sentences from the same video to give the model as situational
 # context (not fact-checked themselves, just there so it knows what's going on)
 _CONTEXT_WINDOW_SIZE = 8
+
+# a tab title is a headline, not a document; anything longer is junk (or an
+# attempt to smuggle a wall of text into the prompt) and gets cut
+_MAX_VIDEO_CONTEXT_CHARS = 200
+
+
+def set_video_context(video_id, context):
+    """Records the title of the tab this session is capturing, if any."""
+    if not isinstance(context, str):
+        return
+    context = " ".join(context.split())[:_MAX_VIDEO_CONTEXT_CHARS].strip()
+    if context:
+        _video_context[video_id] = context
 
 
 def _recent_context(video_id):
@@ -167,7 +184,11 @@ def _store_and_check(video_id, sentences, on_claims=None):
 
     if novel:
         try:
-            results = fact_check_sentences(novel, context_sentences=context)
+            results = fact_check_sentences(
+                novel,
+                context_sentences=context,
+                video_context=_video_context.get(video_id),
+            )
         except FireworksAPIError as exc:
             return {"error": True, "error_message": str(exc), "responses": []}
         for claim, result in zip(novel, results):
@@ -215,4 +236,5 @@ def flush_audio(video_id, on_claims=None):
         video_id, segments, flush_pending=True, on_claims=on_claims,
     )
     _verdict_cache.pop(video_id, None)
+    _video_context.pop(video_id, None)
     return response

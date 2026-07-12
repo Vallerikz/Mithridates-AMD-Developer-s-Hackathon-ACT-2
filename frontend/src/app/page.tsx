@@ -59,7 +59,9 @@ export default function Home() {
       setStreamName(name.split(' - ')[0].replace('screen:', ''));
     }
     setIsStreamActive(true);
-    startStream();
+    // The engine gets the untrimmed title: the site name and the part after the
+    // dash are context for the model even though the header only shows the head.
+    startStream(name);
     // A failed or unsupported PiP request is not fatal: the feed falls back to the page.
     await openPipOverlay();
   }, [openPipOverlay, startStream]);

@@ -12,8 +12,9 @@ def webm_chunk(*clusters):
     return b'\x1a\x45\xdf\xa3header' + b''.join(CLUSTER_ID + c for c in clusters)
 
 
-def create_session(socket_client):
-    socket_client.emit('create_video_session', {}, namespace=NAMESPACE)
+def create_session(socket_client, context=None):
+    payload = {} if context is None else {'context': context}
+    socket_client.emit('create_video_session', payload, namespace=NAMESPACE)
     received = socket_client.get_received(namespace=NAMESPACE)
     return received[0]['args'][0]['video_id']
 
@@ -73,7 +74,7 @@ def test_receive_audio_chunk_happy_path(socket_client, monkeypatch):
         fake_transcribe('The sky is blue. Cats can fly.'),
     )
 
-    def fake_fact_check(sentences, context_sentences=None, timeout=20):
+    def fake_fact_check(sentences, context_sentences=None, video_context=None, timeout=20):
         return [
             {
                 'sentence': sentence,
@@ -106,6 +107,82 @@ def test_receive_audio_chunk_happy_path(socket_client, monkeypatch):
         assert set(result.keys()) == {'sentence', 'verdict', 'confidence', 'explanation'}
 
 
+def test_tab_title_reaches_the_fact_check(socket_client, monkeypatch):
+    monkeypatch.setattr(
+        audio_processing, 'transcribe',
+        fake_transcribe('The sky is blue.'),
+    )
+
+    captured = {}
+
+    def fake_fact_check(sentences, context_sentences=None, video_context=None, timeout=20):
+        captured['video_context'] = video_context
+        return [
+            {
+                'sentence': sentence,
+                'verdict': 'True',
+                'confidence': 0.9,
+                'explanation': 'mocked explanation',
+            }
+            for sentence in sentences
+        ]
+
+    monkeypatch.setattr(audio_processing, 'fact_check_sentences', fake_fact_check)
+
+    video_id = create_session(socket_client, context='Some Debate - YouTube')
+
+    socket_client.emit(
+        'receive_audio_chunk',
+        {'video_id': video_id, 'audio_chunk': webm_chunk(b'first', b'second')},
+        namespace=NAMESPACE,
+    )
+
+    assert captured['video_context'] == 'Some Debate - YouTube'
+
+
+def test_session_without_context_sends_none(socket_client, monkeypatch):
+    monkeypatch.setattr(
+        audio_processing, 'transcribe',
+        fake_transcribe('The sky is blue.'),
+    )
+
+    captured = {}
+
+    def fake_fact_check(sentences, context_sentences=None, video_context=None, timeout=20):
+        captured['video_context'] = video_context
+        return [
+            {
+                'sentence': sentence,
+                'verdict': 'True',
+                'confidence': 0.9,
+                'explanation': 'mocked explanation',
+            }
+            for sentence in sentences
+        ]
+
+    monkeypatch.setattr(audio_processing, 'fact_check_sentences', fake_fact_check)
+
+    video_id = create_session(socket_client)
+
+    socket_client.emit(
+        'receive_audio_chunk',
+        {'video_id': video_id, 'audio_chunk': webm_chunk(b'first', b'second')},
+        namespace=NAMESPACE,
+    )
+
+    assert captured['video_context'] is None
+
+
+def test_disconnect_clears_context_of_silent_session(socket_client):
+    video_id = create_session(socket_client, context='Some Debate - YouTube')
+    assert video_id in audio_processing._video_context
+
+    # no audio was ever sent; disconnecting must still drop the stored title
+    socket_client.disconnect(namespace=NAMESPACE)
+
+    assert video_id not in audio_processing._video_context
+
+
 def test_empty_transcript_emits_nothing(socket_client, monkeypatch):
     monkeypatch.setattr(audio_processing, 'transcribe', fake_transcribe(''))
 
@@ -127,7 +204,7 @@ def test_receive_audio_chunk_fireworks_failure(socket_client, monkeypatch):
         fake_transcribe('The sky is blue.'),
     )
 
-    def boom(sentences, context_sentences=None, timeout=20):
+    def boom(sentences, context_sentences=None, video_context=None, timeout=20):
         raise FireworksAPIError('Fireworks API request failed')
 
     monkeypatch.setattr(audio_processing, 'fact_check_sentences', boom)
@@ -155,7 +232,7 @@ def test_duplicate_claims_use_cached_verdicts(socket_client, monkeypatch):
 
     calls = []
 
-    def fake_fact_check(sentences, context_sentences=None, timeout=20):
+    def fake_fact_check(sentences, context_sentences=None, video_context=None, timeout=20):
         calls.append(list(sentences))
         return [
             {

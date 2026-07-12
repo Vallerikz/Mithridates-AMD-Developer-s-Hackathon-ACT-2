@@ -192,3 +192,41 @@ def test_authorization_header_is_sent(monkeypatch):
 
     assert captured['url'] == fact_check_service.FIREWORKS_API_URL
     assert captured['headers']['Authorization'] == 'Bearer test-key'
+
+
+def _capture_payload(monkeypatch, captured):
+    def fake_post(url, **kwargs):
+        captured['payload'] = kwargs.get('json', {})
+        api_results = [
+            {'sentence': 'A.', 'verdict': 'True', 'confidence': 0.9, 'explanation': 'x'},
+        ]
+        return FakeResponse(_fireworks_payload(api_results))
+
+    monkeypatch.setattr(requests, 'post', fake_post)
+
+
+def test_video_context_is_sent_as_user_data(monkeypatch):
+    captured = {}
+    _capture_payload(monkeypatch, captured)
+
+    fact_check_sentences(['A.'], video_context='Some Debate - YouTube')
+
+    system_message, user_message = captured['payload']['messages']
+    user_content = json.loads(user_message['content'])
+
+    assert user_content['video_context'] == 'Some Debate - YouTube'
+    # the title is third-party text: it must stay data, never become instructions
+    assert 'Some Debate' not in system_message['content']
+    assert fact_check_service.VIDEO_CONTEXT_SYSTEM_PROMPT_SUFFIX in system_message['content']
+
+
+def test_no_video_context_leaves_payload_untouched(monkeypatch):
+    captured = {}
+    _capture_payload(monkeypatch, captured)
+
+    fact_check_sentences(['A.'])
+
+    system_message, user_message = captured['payload']['messages']
+
+    assert 'video_context' not in json.loads(user_message['content'])
+    assert fact_check_service.VIDEO_CONTEXT_SYSTEM_PROMPT_SUFFIX not in system_message['content']

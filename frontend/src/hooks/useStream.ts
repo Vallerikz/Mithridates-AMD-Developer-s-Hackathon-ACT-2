@@ -25,8 +25,12 @@ export function useStream() {
 
   /**
    * Initializes the stream state and connects to the backend.
+   *
+   * `videoContext` is the title of the captured tab. It is the only thing that
+   * tells the engine what it is listening to — who is speaking and on what
+   * subject — so claims are judged in context rather than in a vacuum.
    */
-  const startStream = useCallback(() => {
+  const startStream = useCallback((videoContext?: string) => {
     isStreaming.current = true;
     setEngineError(null);
 
@@ -41,7 +45,7 @@ export function useStream() {
       console.log("Connected to Fact-Checking Engine");
 
       // Handshake: create a video session
-      socket.emit("create_video_session", {});
+      socket.emit("create_video_session", { context: videoContext });
     });
 
     socket.on("video_session_created", (data: { video_id: number }) => {

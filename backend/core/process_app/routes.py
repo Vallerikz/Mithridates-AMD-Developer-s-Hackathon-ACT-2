@@ -1,7 +1,7 @@
 from flask import request, current_app
 
 from core import socketio, db
-from core.audio_processing import process_audio, flush_audio
+from core.audio_processing import process_audio, flush_audio, set_video_context
 from core.models import VideoSessionSaveModel
 
 # session id -> video_id, used to flush the final audio buffer on disconnect
@@ -31,15 +31,26 @@ def connect():
 
 
 @socketio.on("create_video_session", namespace="/data_receive_space")
-def create_video_session(_):
+def create_video_session(data):
     """
     Creates a new video/session and returns the video_id.
+
+    The client may pass a "context" string (the title of the tab it is
+    capturing), which is handed to the model with every fact-check so it knows
+    what the audio it is judging actually is.
     """
 
     video = VideoSessionSaveModel()
 
     db.session.add(video)
     db.session.commit()
+
+    if isinstance(data, dict):
+        set_video_context(video.video_id, data.get("context"))
+
+    # map the sid right away so the disconnect cleanup also covers sessions
+    # that stored a context but never sent any audio
+    _session_videos[request.sid] = video.video_id
 
     socketio.emit(
         "video_session_created",
