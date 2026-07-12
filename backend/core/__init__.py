@@ -10,6 +10,8 @@ from flask_migrate import Migrate
 from flask_socketio import SocketIO
 from flask_sqlalchemy import SQLAlchemy
 from flask_marshmallow import Marshmallow
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 
 load_dotenv(os.environ.get('env_file'))
 
@@ -24,6 +26,11 @@ socketio = SocketIO(
 swagger = Swagger()
 migrate = Migrate(compare_type=True)
 marshmallow = Marshmallow()
+limiter = Limiter(
+    get_remote_address,
+    default_limits=["10 per minute"],
+    strategy="fixed-window"
+)
 
 
 def create_app(config_name, **kwargs):
@@ -36,6 +43,7 @@ def create_app(config_name, **kwargs):
     db.init_app(app)
     cors.init_app(app)
     socketio.init_app(app)
+    limiter.init_app(app)
     migrate.init_app(app, db)
     marshmallow.init_app(app)
     swagger.init_app(app)
