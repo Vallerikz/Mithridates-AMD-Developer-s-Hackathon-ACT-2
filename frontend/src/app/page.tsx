@@ -11,6 +11,8 @@ import { SummaryCard } from "../components/SummaryCard";
 import { AnimatedGradient } from "@/components/AnimatedGradient";
 import { PremiumScrollSection } from "@/components/PremiumScrollSection";
 import { TutorialScrollSection } from "@/components/TutorialScrollSection";
+import { HistorySidebar } from "@/components/HistorySidebar";
+import { History } from "lucide-react";
 
 /**
  * The main application page.
@@ -26,12 +28,20 @@ export default function Home() {
   const [isVadSilent, setIsVadSilent] = useState(false);
   const [streamName, setStreamName] = useState<string | null>(null);
 
+  // History UI State
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+
   // Summary UI State
   const [isSummarizing, setIsSummarizing] = useState(false);
   const [summaryText, setSummaryText] = useState<string | null>(null);
+  const [summaryAnchorId, setSummaryAnchorId] = useState<number | string | null>(null);
+  const [rateLimitSeconds, setRateLimitSeconds] = useState(0);
 
   // Ref to hold the synchronous pause state to prevent stale closures in the MediaRecorder callback
   const isEnginePausedRef = useRef(false);
+
+  // Ref to scroll to the summary when generated
+  const summaryRef = useRef<HTMLDivElement>(null);
 
   const toggleEngine = () => {
     setIsEnginePaused((prev) => {
@@ -81,9 +91,31 @@ export default function Home() {
 
   const handleGenerateSummary = async () => {
     setIsSummarizing(true);
-    const summary = await fetchSessionSummary();
+    setRateLimitSeconds(6);
+    
+    // Anchor the summary to the current topmost event
+    setSummaryAnchorId(events.length > 0 ? events[0].id : null);
+    
+    const action = summaryText ? "update" : "generate";
+    const summary = await fetchSessionSummary(action);
     setSummaryText(summary);
     setIsSummarizing(false);
+
+    // Start a countdown interval for 6 seconds
+    const interval = setInterval(() => {
+      setRateLimitSeconds((prev) => {
+        if (prev <= 1) {
+          clearInterval(interval);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    // Give React a tiny tick to render the content before scrolling
+    setTimeout(() => {
+      summaryRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 100);
   };
 
   /**
@@ -127,26 +159,32 @@ export default function Home() {
             {engineError}
           </div>
         )}
-        <Feed events={events} isEnginePaused={isEnginePaused} chunksSent={chunksSent} isVadSilent={isVadSilent} streamName={streamName} />
 
-        {/* The Summary Card renders right after the feed if available */}
-        <div className="mt-8">
-          <SummaryCard summary={summaryText} isLoading={isSummarizing} />
-        </div>
+        <Feed 
+          events={events} 
+          isEnginePaused={isEnginePaused} 
+          chunksSent={chunksSent} 
+          isVadSilent={isVadSilent} 
+          streamName={streamName} 
+          summaryText={summaryText}
+          isSummarizing={isSummarizing}
+          summaryAnchorId={summaryAnchorId}
+          summaryRef={summaryRef}
+        />
       </div>
 
       {/* Floating in the PiP window, but part of the flow when rendered inline */}
       <div className={inPip ? "fixed bottom-8 left-1/2 -translate-x-1/2 z-50 pointer-events-auto" : "mt-8 flex justify-center"}>
         <button
           onClick={handleGenerateSummary}
-          disabled={!isEnginePaused || isSummarizing}
+          disabled={isSummarizing || rateLimitSeconds > 0}
           className={`flex items-center justify-center gap-2 px-8 py-3.5 text-xs font-bold uppercase tracking-widest transition-all duration-300 rounded-full shadow-lg border ${
-            !isEnginePaused
+            isSummarizing || rateLimitSeconds > 0
               ? "bg-white text-slate-300 cursor-not-allowed border-slate-200 shadow-sm"
               : "bg-slate-900 text-white hover:bg-black border-slate-900 hover:shadow-xl active:scale-95"
           }`}
         >
-          {isSummarizing ? "Processing..." : summaryText ? "Update Summary" : "Generate Summary"}
+          {isSummarizing ? "Processing..." : rateLimitSeconds > 0 ? <>Rate Limited <span className="text-[9px] opacity-75 normal-case tracking-normal ml-1">({rateLimitSeconds} sec)</span></> : summaryText ? "Update Summary" : "Generate Summary"}
         </button>
       </div>
 
@@ -157,11 +195,22 @@ export default function Home() {
     <div className="min-h-screen bg-white selection:bg-slate-100">
 
       {/* Top Navbar */}
-      <header className="absolute top-0 left-0 w-full p-6 flex justify-between items-center z-20">
-        <div className="text-xl font-bold tracking-tighter text-black flex items-center gap-2">
-          TruLens.
+      <header className="fixed top-0 left-0 w-full p-6 flex justify-between items-center z-50">
+        <div className="flex items-center gap-4">
+          <button 
+            onClick={() => setIsHistoryOpen(true)}
+            className="p-2 -ml-2 text-slate-400 hover:text-black hover:bg-slate-100 rounded-full transition-colors flex items-center justify-center"
+            title="View History"
+          >
+            <History className="w-5 h-5" />
+          </button>
+          <div className="text-xl font-bold tracking-tighter text-black flex items-center gap-2">
+            TruLens.
+          </div>
         </div>
       </header>
+
+      <HistorySidebar isOpen={isHistoryOpen} onClose={() => setIsHistoryOpen(false)} />
 
       {/* Main Content Area */}
       <main className={`flex-1 relative flex flex-col items-center w-full ${isStreamActive ? 'pt-32 pb-24' : ''}`}>

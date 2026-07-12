@@ -162,12 +162,18 @@ export function useStream() {
   }, []);
 
   /**
-   * Fetches the summary of the current video session from the backend.
+   * Generates or updates the summary of the current video session from the backend.
    */
-  const fetchSessionSummary = useCallback(async (): Promise<string | null> => {
+  const fetchSessionSummary = useCallback(async (action: "generate" | "update"): Promise<string | null> => {
     if (videoIdRef.current === null) return null;
     try {
-      const response = await fetch(`${API_URL}/videos/${videoIdRef.current}/summary`);
+      const response = await fetch(`${API_URL}/videos/${videoIdRef.current}/summary`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ action }),
+      });
       if (!response.ok) {
         throw new Error("Failed to fetch summary");
       }

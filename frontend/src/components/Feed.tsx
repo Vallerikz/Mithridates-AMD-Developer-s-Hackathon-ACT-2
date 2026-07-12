@@ -1,7 +1,10 @@
 "use client";
 
+import React, { useState, useEffect } from "react";
+
 import { FactCheckEvent } from "../types";
 import { Card } from "./Card";
+import { SummaryCard } from "./SummaryCard";
 import { motion, AnimatePresence } from "framer-motion";
 
 interface FeedProps {
@@ -15,13 +18,38 @@ interface FeedProps {
   isVadSilent?: boolean;
   /** Display name of the active stream/tab being captured */
   streamName?: string | null;
+  /** The generated summary text */
+  summaryText?: string | null;
+  /** Whether the summary is currently generating */
+  isSummarizing?: boolean;
+  /** The ID of the event to anchor the summary below */
+  summaryAnchorId?: number | string | null;
+  /** Ref to auto-scroll to the summary */
+  summaryRef?: React.RefObject<HTMLDivElement | null>;
 }
 
 /**
  * A chronological list component that gracefully animates new fact-check cards 
  * into view as they arrive from the backend engine.
  */
-export function Feed({ events, isEnginePaused = false, chunksSent = 0, isVadSilent = false, streamName = null }: FeedProps) {
+export function Feed({ events, isEnginePaused = false, chunksSent = 0, isVadSilent = false, streamName = null, summaryText = null, isSummarizing = false, summaryAnchorId = null, summaryRef }: FeedProps) {
+  const loadingPhrases = [
+    streamName ? `Receiving ${streamName}...` : "Receiving audio stream...",
+    "Transcribing speech...",
+    "Analyzing context...",
+    "Fact-checking claims..."
+  ];
+  const [phraseIndex, setPhraseIndex] = useState(0);
+
+  useEffect(() => {
+    if (events.length === 0 && chunksSent > 0 && !isEnginePaused && !isVadSilent) {
+      const interval = setInterval(() => {
+        setPhraseIndex((prev) => (prev + 1) % loadingPhrases.length);
+      }, 2500);
+      return () => clearInterval(interval);
+    }
+  }, [events.length, chunksSent, isEnginePaused, isVadSilent, loadingPhrases.length]);
+
   if (events.length === 0) {
     const isLive = chunksSent > 0 && !isEnginePaused && !isVadSilent;
     
@@ -39,9 +67,20 @@ export function Feed({ events, isEnginePaused = false, chunksSent = 0, isVadSile
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 10V3L4 14h7v7l9-11h-7z" />
               </svg>
             </motion.div>
-            <p className="text-xs font-bold tracking-widest uppercase text-emerald-500">
-              {streamName ? `Analyzing ${streamName}` : 'Listening & Analyzing...'}
-            </p>
+            <div className="h-6 flex items-center justify-center overflow-hidden">
+              <AnimatePresence mode="wait">
+                <motion.p
+                  key={phraseIndex}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  transition={{ duration: 0.3 }}
+                  className="text-xs font-bold tracking-widest uppercase text-emerald-500"
+                >
+                  {loadingPhrases[phraseIndex]}
+                </motion.p>
+              </AnimatePresence>
+            </div>
           </>
         ) : isEnginePaused ? (
           <>
@@ -72,16 +111,28 @@ export function Feed({ events, isEnginePaused = false, chunksSent = 0, isVadSile
   return (
     <div className="w-full flex flex-col gap-6 w-full">
       <AnimatePresence mode="popLayout">
-        {events.map((event) => (
-          <motion.div
-            layout
-            key={event.id}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="w-full"
-          >
-            <Card event={event} />
+        {events.length === 0 && (summaryText || isSummarizing) && (
+          <motion.div layout initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="w-full mb-6" ref={summaryRef as any}>
+            <SummaryCard summary={summaryText} isLoading={isSummarizing} />
           </motion.div>
+        )}
+        {events.map((event) => (
+          <React.Fragment key={event.id}>
+            <motion.div
+              layout
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="w-full"
+            >
+              <Card event={event} />
+            </motion.div>
+            
+            {event.id === summaryAnchorId && (summaryText || isSummarizing) && (
+              <motion.div layout initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="w-full mt-6" ref={summaryRef as any}>
+                <SummaryCard summary={summaryText} isLoading={isSummarizing} />
+              </motion.div>
+            )}
+          </React.Fragment>
         ))}
       </AnimatePresence>
     </div>
