@@ -37,10 +37,18 @@ def create_video_session(_):
     """
 
     video = VideoSessionSaveModel()
-
-    db.session.add(video)
-    db.session.commit()
-
+    try:
+        db.session.add(video)
+        db.session.commit()
+    except Exception as e:
+        print(f"{e} exception occurred.", flush=True)
+        db.session.rollback()
+        socketio.emit(
+            "error",
+            {"message": "Failed to create video session."},
+            room=request.sid, namespace="/data_receive_space",
+        )
+        return
     socketio.emit(
         "video_session_created",
         {

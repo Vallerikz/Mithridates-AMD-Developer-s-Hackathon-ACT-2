@@ -12,7 +12,19 @@ class VideoSessionSaveModel(db.Model):
         "SentenceSaveModel",
         backref="video",
         lazy=True,
-        cascade="all, delete-orphan"
+        cascade="all, delete-orphan",
+        order_by="SentenceSaveModel.id"
+    )
+
+    summary_text = db.Column(
+        db.Text,
+        nullable=True,
+    )
+
+    created_at = db.Column(
+        db.DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(UTC),
     )
 
     def __repr__(self):
